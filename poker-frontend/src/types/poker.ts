@@ -23,6 +23,7 @@ export interface PlayerState {
   is_folded: boolean;
   is_all_in: boolean;
   is_connected: boolean;
+  is_ready: boolean;
   has_acted_this_round: boolean;
 }
 

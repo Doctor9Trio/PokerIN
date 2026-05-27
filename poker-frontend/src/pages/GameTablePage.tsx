@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { PokerTable } from '../components/table/PokerTable';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -24,6 +24,8 @@ export const GameTablePage: React.FC = () => {
   const { send, disconnect } = useWebSocket(inviteCode || null);
 
   const hasBoughtIn = React.useRef(false);
+  const [showBuyInModal, setShowBuyInModal] = useState(false);
+  const [buyInAmount, setBuyInAmount] = useState('1000');
 
   // Send buy-in on first connection
   useEffect(() => {
@@ -34,6 +36,26 @@ export const GameTablePage: React.FC = () => {
       hasBoughtIn.current = true;
     }
   }, [isConnected, searchParams, send]);
+
+  // Show buy-in modal if stack is 0
+  useEffect(() => {
+    if (isConnected && tableState && !hasBoughtIn.current) {
+        const myPlayer = tableState.players.find(p => p.user_id === userId);
+        if (myPlayer && parseFloat(myPlayer.stack) === 0) {
+            setShowBuyInModal(true);
+        }
+    }
+  }, [isConnected, tableState, userId]);
+
+  const handleManualBuyIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(buyInAmount);
+    if (amount > 0) {
+      send({ type: 'BUY_IN', amount });
+      hasBoughtIn.current = true;
+      setShowBuyInModal(false);
+    }
+  };
 
   // Cleanup on unmount
   useEffect(() => {
@@ -95,6 +117,7 @@ export const GameTablePage: React.FC = () => {
           myCards={myCards}
           actionRequired={actionRequired}
           onAction={handleAction}
+          onReady={() => send({ type: 'READY' })}
         />
       ) : (
         <div className="flex items-center justify-center h-full" style={{ color: '#475569' }}>
@@ -102,20 +125,69 @@ export const GameTablePage: React.FC = () => {
         </div>
       )}
 
-      {/* Leave button */}
-      <button
-        id="btn-leave-table"
-        onClick={handleLeave}
-        className="fixed bottom-4 right-4 text-xs px-3 py-1.5 rounded-lg"
-        style={{
-          background: 'rgba(239,68,68,0.15)',
-          color: '#f87171',
-          border: '1px solid rgba(239,68,68,0.3)',
-          zIndex: 200,
-        }}
-      >
-        Leave Table
-      </button>
+      {/* Buy-In Modal */}
+      {showBuyInModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
+          <div className="p-6 rounded-2xl border w-80 relative" style={{ background: '#0f172a', borderColor: '#1e293b' }}>
+            <button 
+              onClick={() => setShowBuyInModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-bold mb-4" style={{ color: '#f8fafc' }}>Buy In to Play</h2>
+            <form onSubmit={handleManualBuyIn} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm mb-1" style={{ color: '#94a3b8' }}>Amount (₹)</label>
+                <input
+                  type="number"
+                  value={buyInAmount}
+                  onChange={(e) => setBuyInAmount(e.target.value)}
+                  className="w-full bg-transparent border rounded p-2 text-white"
+                  style={{ borderColor: '#334155' }}
+                  min="100"
+                  step="100"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2 rounded font-bold mt-2 hover:opacity-90 transition-opacity"
+                style={{ background: '#d4af37', color: '#030807' }}
+              >
+                Join Table
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Buttons */}
+      <div className="fixed bottom-4 right-4 flex gap-2 z-[200]">
+        <button
+          onClick={() => setShowBuyInModal(true)}
+          className="text-xs px-3 py-1.5 rounded-lg font-bold"
+          style={{
+            background: 'rgba(212, 175, 55, 0.15)',
+            color: '#d4af37',
+            border: '1px solid rgba(212, 175, 55, 0.3)',
+          }}
+        >
+          Buy In
+        </button>
+        <button
+          id="btn-leave-table"
+          onClick={handleLeave}
+          className="text-xs px-3 py-1.5 rounded-lg"
+          style={{
+            background: 'rgba(239,68,68,0.15)',
+            color: '#f87171',
+            border: '1px solid rgba(239,68,68,0.3)',
+          }}
+        >
+          Leave Table
+        </button>
+      </div>
     </div>
   );
 };

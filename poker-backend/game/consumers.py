@@ -106,15 +106,17 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
         save_state(self.invite_code, state)
 
-        # Broadcast player joined
-        await self.channel_layer.group_send(self.room_group, {
-            'type': 'broadcast_player_joined',
-            'username': self.user.username,
-            'seat_index': self._get_seat_for_user(state),
-        })
+        # Broadcast current table state to EVERYONE (including the joining player)
+        await self.broadcast_table_state(state)
 
         # Send current table state to the joining player
         await self.send_table_state(state)
+
+        # If it's my turn, send ACTION_REQUIRED
+        player = self._find_me(state)
+        if player and state.get('current_turn') == player['seat_index']:
+            if state.get('game_stage') not in ('SHOWDOWN', 'WAITING'):
+                await self._notify_current_player(state)
 
     async def disconnect(self, close_code):
         """Mark player as disconnected. Give them a reconnect window."""
@@ -240,7 +242,6 @@ class PokerConsumer(AsyncWebsocketConsumer):
         player = self._find_me(state)
         if player:
             player['stack'] = str(Decimal(player['stack']) + amount)
-            player['is_folded'] = False  # Now eligible to play
             save_state(self.invite_code, state)
 
         await self.send_json({
@@ -256,7 +257,12 @@ class PokerConsumer(AsyncWebsocketConsumer):
     async def handle_ready(self, data: dict):
         """Player signals they're ready. Start hand if conditions met."""
         state = get_state(self.invite_code)
-        await self._check_and_start_hand(state)
+        player = self._find_me(state)
+        if player:
+            player['is_ready'] = True
+            save_state(self.invite_code, state)
+            await self.broadcast_table_state(state)
+            await self._check_and_start_hand(state)
 
     async def handle_chat(self, data: dict):
         """Broadcast chat message to the table."""
@@ -417,18 +423,23 @@ class PokerConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(data, default=str))
 
     async def _check_and_start_hand(self, state: dict):
-        """Start a new hand if 2+ players have chips and game is WAITING."""
+        """Start a new hand if 2+ players are ready and have chips."""
         if state['game_stage'] != 'WAITING':
             return
-        eligible = [
+
+        ready_players = [
             p for p in state['players']
-            if p['is_connected'] and Decimal(p['stack']) > 0
+            if p['is_connected'] and Decimal(p['stack']) > 0 and p.get('is_ready', False)
         ]
-        if len(eligible) >= 2:
-            state = GameEngine.start_new_hand(state)
-            save_state(self.invite_code, state)
-            await self.broadcast_table_state(state)
-            await self._notify_current_player(state)
+
+        if len(ready_players) >= 2:
+            try:
+                state = GameEngine.start_new_hand(state)
+                save_state(self.invite_code, state)
+                await self.broadcast_table_state(state)
+                await self._notify_current_player(state)
+            except ValueError as e:
+                pass # Not enough players met criteria during start_new_hand
 
     async def _notify_current_player(self, state: dict):
         """Send ACTION_REQUIRED to the current player's private channel."""
@@ -463,7 +474,11 @@ class PokerConsumer(AsyncWebsocketConsumer):
     async def send_action_required(self, event):
         await self.send_json({
             'type': 'ACTION_REQUIRED',
-            **event,
+            'valid_actions': event.get('valid_actions', []),
+            'call_amount': event.get('call_amount', '0'),
+            'min_raise': event.get('min_raise', '0'),
+            'pot': event.get('pot', '0'),
+            'timeout_seconds': event.get('timeout_seconds', 30),
         })
 
     @database_sync_to_async
@@ -475,11 +490,13 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _deduct_wallet(self, amount: Decimal) -> bool:
-        try:
-            self.user.wallet.deduct(amount)
-            return True
-        except (ValueError, AttributeError):
-            return False
+        # UNLIMITED MONEY FOR TESTING - Bypass actual deduction
+        return True
+        # try:
+        #     self.user.wallet.deduct(amount)
+        #     return True
+        # except (ValueError, AttributeError):
+        #     return False
 
     @database_sync_to_async
     def _settle_hand(self, state: dict):

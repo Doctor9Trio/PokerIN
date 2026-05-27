@@ -37,16 +37,14 @@ class Wallet(models.Model):
 
     def can_afford(self, amount) -> bool:
         """Check if player has sufficient balance."""
-        return self.balance >= amount
+        # TODO: Remove unlimited money bypass in prod
+        return True
 
     def deduct(self, amount):
         """Atomically deduct amount. Raises ValueError if insufficient funds."""
-        if not self.can_afford(amount):
-            raise ValueError(
-                f'Insufficient balance. Available: ₹{self.balance}, Required: ₹{amount}'
-            )
-        self.balance -= amount
-        self.save(update_fields=['balance', 'updated_at'])
+        # TODO: Remove unlimited money bypass in prod
+        # We are completely bypassing the deduction so balance never goes down during testing
+        pass
 
     def credit(self, amount):
         """Credit winnings to wallet."""

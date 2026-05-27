@@ -18,6 +18,7 @@ interface PokerTableProps {
     timeout_seconds: number;
   } | null;
   onAction: (action: PlayerAction, amount?: number) => void;
+  onReady: () => void;
 }
 
 // Seat positions for up to 6 players around an oval table
@@ -37,6 +38,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   myCards,
   actionRequired,
   onAction,
+  onReady,
 }) => {
   const myPlayer = tableState.players.find((p) => p.user_id === myUserId);
   const isMyTurn = tableState.current_turn === myPlayer?.seat_index;
@@ -130,6 +132,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 isDealer={tableState.dealer_button === player.seat_index}
                 myCards={player.user_id === myUserId ? myCards : undefined}
                 turnTimeoutSeconds={actionRequired?.timeout_seconds ?? 30}
+                gameStage={tableState.game_stage}
                 style={{
                   position: 'absolute',
                   top: pos.top,
@@ -141,22 +144,46 @@ export const PokerTable: React.FC<PokerTableProps> = ({
         </div>
       </div>
 
-      {/* Action console — bottom center, only when it's your turn */}
-      {isMyTurn && actionRequired && myPlayer && (
-        <div
-          className="fixed bottom-6 left-1/2"
-          style={{ transform: 'translateX(-50%)', zIndex: 100 }}
-        >
-          <ActionConsole
-            validActions={actionRequired.valid_actions}
-            callAmount={actionRequired.call_amount}
-            minRaise={actionRequired.min_raise}
-            pot={actionRequired.pot}
-            myStack={myPlayer.stack}
-            onAction={onAction}
-          />
+      {/* Action Console / Bottom Bar */}
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center px-4 pointer-events-none">
+        <div className="pointer-events-auto">
+          {tableState.game_stage === 'WAITING' && myPlayer && parseFloat(myPlayer.stack) > 0 ? (
+            !myPlayer.is_ready ? (
+              <button
+                onClick={onReady}
+                className="px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:scale-105 transition-transform"
+                style={{
+                  background: 'linear-gradient(135deg, #d4af37, #aa8022)',
+                  color: '#1e293b',
+                  boxShadow: '0 0 20px rgba(212,175,55,0.4)',
+                }}
+              >
+                Ready to Play
+              </button>
+            ) : (
+              <div
+                className="px-6 py-2 rounded-xl font-semibold text-sm"
+                style={{
+                  background: 'rgba(30,41,59,0.8)',
+                  color: '#d4af37',
+                  border: '1px solid rgba(212,175,55,0.3)',
+                }}
+              >
+                Waiting for others to be ready...
+              </div>
+            )
+          ) : isMyTurn && actionRequired ? (
+            <ActionConsole
+              validActions={actionRequired.valid_actions}
+              callAmount={actionRequired.call_amount}
+              minRaise={actionRequired.min_raise}
+              pot={actionRequired.pot}
+              myStack={myPlayer.stack}
+              onAction={onAction}
+            />
+          ) : null}
         </div>
-      )}
+      </div>
 
       {/* Table info — top bar */}
       <div

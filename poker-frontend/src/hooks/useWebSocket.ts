@@ -77,6 +77,7 @@ export function useWebSocket(inviteCode: string | null) {
 
         case 'ERROR':
           console.error('[Poker WS Error]', msg.message);
+          alert(msg.message);
           break;
       }
     };

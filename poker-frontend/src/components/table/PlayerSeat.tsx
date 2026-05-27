@@ -13,14 +13,26 @@ interface PlayerSeatProps {
   myCards?: string[];        // Private hole cards (only for isCurrentUser)
   turnTimeoutSeconds?: number;
   style?: React.CSSProperties;
+  gameStage: string;
 }
 
 // Status badge for the player
-function StatusBadge({ player }: { player: PlayerState }) {
+function StatusBadge({ player, gameStage }: { player: PlayerState; gameStage: string }) {
+  if (gameStage === 'WAITING' && player.is_ready) {
+    return (
+      <div
+        className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full"
+        style={{ background: 'rgba(34,197,94,0.9)', color: '#fff', border: '1px solid #16a34a' }}
+      >
+        READY
+      </div>
+    );
+  }
+
   if (player.is_folded) {
     return (
       <div
-        className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold px-2 py-0.5 rounded-full"
+        className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full"
         style={{ background: 'rgba(100,116,139,0.8)', color: '#94a3b8' }}
       >
         Folded
@@ -58,6 +70,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
   myCards,
   turnTimeoutSeconds = 30,
   style,
+  gameStage,
 }) => {
   const [remainingTime, setRemainingTime] = useState(turnTimeoutSeconds);
 
@@ -97,7 +110,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
 
       {/* Avatar */}
       <div className="relative">
-        <StatusBadge player={player} />
+        <StatusBadge player={player} gameStage={gameStage} />
         <div
           className={`player-avatar ${isActiveTurn ? 'active' : ''}`}
           style={{

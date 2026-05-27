@@ -105,6 +105,7 @@ class GameEngine:
                     'is_folded': False,
                     'is_all_in': False,
                     'is_connected': True,
+                    'is_ready': False,
                     'has_acted_this_round': False,
                 }
                 for p in players
@@ -123,9 +124,9 @@ class GameEngine:
         4. Deal 2 hole cards to each active player
         5. Set PRE_FLOP stage and first-to-act
         """
-        active = [p for p in state['players'] if p['is_connected']]
+        active = [p for p in state['players'] if p['is_connected'] and Decimal(p['stack']) > 0 and p.get('is_ready', False)]
         if len(active) < 2:
-            raise ValueError('Need at least 2 connected players to start a hand.')
+            raise ValueError('Need at least 2 ready players with chips to start a hand.')
 
         state['hand_number'] += 1
         state['game_stage'] = 'PRE_FLOP'
@@ -139,7 +140,7 @@ class GameEngine:
         for p in state['players']:
             p['hole_cards'] = []
             p['current_bet'] = '0.00'
-            p['is_folded'] = not p['is_connected']
+            p['is_folded'] = p not in active
             p['is_all_in'] = False
             p['has_acted_this_round'] = False
 
@@ -489,5 +490,6 @@ class GameEngine:
             p['current_bet'] = '0.00'
             p['is_folded'] = False
             p['is_all_in'] = False
+            p['is_ready'] = False
             p['has_acted_this_round'] = False
         return state
