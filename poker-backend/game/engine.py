@@ -105,7 +105,6 @@ class GameEngine:
                     'is_folded': False,
                     'is_all_in': False,
                     'is_connected': True,
-                    'is_ready': False,
                     'has_acted_this_round': False,
                 }
                 for p in players
@@ -124,7 +123,7 @@ class GameEngine:
         4. Deal 2 hole cards to each active player
         5. Set PRE_FLOP stage and first-to-act
         """
-        active = [p for p in state['players'] if p['is_connected'] and Decimal(p['stack']) > 0 and p.get('is_ready', False)]
+        active = [p for p in state['players'] if p['is_connected'] and Decimal(p['stack']) > 0]
         if len(active) < 2:
             raise ValueError('Need at least 2 ready players with chips to start a hand.')
 
@@ -152,8 +151,14 @@ class GameEngine:
 
         # Determine SB and BB seats
         dealer_idx = connected_seats.index(state['dealer_button'])
-        sb_seat = connected_seats[(dealer_idx + 1) % len(connected_seats)]
-        bb_seat = connected_seats[(dealer_idx + 2) % len(connected_seats)]
+        if len(connected_seats) == 2:
+            # In Heads-Up, Dealer is SB, other player is BB
+            sb_seat = connected_seats[dealer_idx]
+            bb_seat = connected_seats[(dealer_idx + 1) % len(connected_seats)]
+        else:
+            # Standard rules for 3+ players
+            sb_seat = connected_seats[(dealer_idx + 1) % len(connected_seats)]
+            bb_seat = connected_seats[(dealer_idx + 2) % len(connected_seats)]
 
         sb = Decimal(state['small_blind'])
         bb = Decimal(state['big_blind'])
@@ -171,10 +176,15 @@ class GameEngine:
             if not p['is_folded']:
                 p['hole_cards'] = [state['deck'].pop(), state['deck'].pop()]
 
-        # First to act pre-flop is UTG (player after BB)
-        bb_idx = connected_seats.index(bb_seat)
-        utg_seat = connected_seats[(bb_idx + 1) % len(connected_seats)]
-        state['current_turn'] = utg_seat
+        # First to act pre-flop
+        if len(connected_seats) == 2:
+            # In Heads-Up, SB (Dealer) acts first pre-flop
+            state['current_turn'] = sb_seat
+        else:
+            # UTG (player after BB) acts first
+            bb_idx = connected_seats.index(bb_seat)
+            utg_seat = connected_seats[(bb_idx + 1) % len(connected_seats)]
+            state['current_turn'] = utg_seat
 
         # BB has not acted yet (can still raise)
         bb_player = find_player(state, bb_seat)
@@ -490,6 +500,5 @@ class GameEngine:
             p['current_bet'] = '0.00'
             p['is_folded'] = False
             p['is_all_in'] = False
-            p['is_ready'] = False
             p['has_acted_this_round'] = False
         return state

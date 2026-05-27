@@ -207,6 +207,11 @@ class PokerConsumer(AsyncWebsocketConsumer):
             await asyncio.sleep(5)
             state = GameEngine.reset_for_next_hand(get_state(self.invite_code))
             save_state(self.invite_code, state)
+            await self.broadcast_table_state(state)
+            
+            # Automatically start next hand if 2+ players still have chips
+            await self._check_and_start_hand(state)
+            return
 
         await self.broadcast_table_state(state)
 
@@ -429,7 +434,7 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
         ready_players = [
             p for p in state['players']
-            if p['is_connected'] and Decimal(p['stack']) > 0 and p.get('is_ready', False)
+            if p['is_connected'] and Decimal(p['stack']) > 0
         ]
 
         if len(ready_players) >= 2:
