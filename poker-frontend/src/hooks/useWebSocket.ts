@@ -63,6 +63,19 @@ export function useWebSocket(inviteCode: string | null) {
           setWinners(msg.winners);
           playSound('pot_win');
           setActionRequired(null);
+          if (msg.players) {
+            const currentState = useGameStore.getState().tableState;
+            if (currentState) {
+              const newPlayers = currentState.players.map(p => {
+                const updatedP = msg.players.find((mp: any) => mp.seat_index === p.seat_index);
+                if (updatedP && updatedP.hole_cards && updatedP.hole_cards.length > 0) {
+                  return { ...p, hole_cards: updatedP.hole_cards };
+                }
+                return p;
+              });
+              setTableState({ ...currentState, players: newPlayers });
+            }
+          }
           break;
 
         case 'PLAYER_JOINED':

@@ -15,14 +15,10 @@ const SUIT_SYMBOL: Record<string, string> = {
   h: '♥', d: '♦', c: '♣', s: '♠',
 };
 
-const SUIT_CLASS: Record<string, string> = {
-  h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades',
-};
-
 const SIZE_MAP = {
-  sm: { card: 'w-9 h-14', rank: 'text-sm', suit: 'text-lg' },
-  md: { card: 'w-11 h-16', rank: 'text-base', suit: 'text-xl' },
-  lg: { card: 'w-16 h-24', rank: 'text-xl', suit: 'text-3xl' },
+  sm: { card: 'w-10 h-14', rank: 'text-base', suit: 'text-xl' },
+  md: { card: 'w-14 h-20', rank: 'text-lg', suit: 'text-2xl' },
+  lg: { card: 'w-20 h-28', rank: 'text-2xl', suit: 'text-4xl' },
 };
 
 export const PlayingCard: React.FC<PlayingCardProps> = ({
@@ -36,16 +32,18 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   if (card === 'XX' || !card) {
     return (
       <div
-        className={`playing-card face-down ${sz.card} ${className}`}
+        className={`relative flex-shrink-0 rounded-lg shadow-lg ${sz.card} ${className}`}
         style={{
-          background: 'linear-gradient(135deg, #1e3a5f 0%, #162e4a 50%, #1e3a5f 100%)',
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          border: '1px solid rgba(255,255,255,0.1)',
           backgroundImage: `repeating-linear-gradient(
             45deg,
-            rgba(255,255,255,0.03) 0px,
-            rgba(255,255,255,0.03) 2px,
+            rgba(255,255,255,0.05) 0px,
+            rgba(255,255,255,0.05) 2px,
             transparent 2px,
-            transparent 8px
+            transparent 6px
           )`,
+          boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.5)',
         }}
       />
     );
@@ -55,37 +53,31 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   const suit = card.slice(-1).toLowerCase();
   const displayRank = RANK_DISPLAY[rank] || rank;
   const suitSymbol = SUIT_SYMBOL[suit] || '';
-  const suitClass = SUIT_CLASS[suit] || '';
 
   const isRed = suit === 'h' || suit === 'd';
+  const color = isRed ? '#f87171' : '#f1f5f9'; // Soft red or off-white for black suits
 
   return (
     <div
-      className={`playing-card ${suitClass} ${sz.card} ${className} relative flex flex-col justify-between p-1`}
+      className={`relative flex-shrink-0 rounded-lg ${sz.card} ${className}`}
       style={{
-        background: '#fff',
-        borderRadius: '6px',
-        border: '1px solid rgba(0,0,0,0.1)',
-        boxShadow: '2px 4px 12px rgba(0,0,0,0.5)',
-        color: isRed ? '#dc2626' : '#0f172a',
+        background: 'linear-gradient(145deg, #334155, #1e293b)',
+        border: '1px solid rgba(255,255,255,0.15)',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+        color: color,
+        fontFamily: "'Outfit', sans-serif",
       }}
     >
-      {/* Top-left rank+suit */}
-      <div className={`${sz.rank} font-bold leading-none flex flex-col items-start`}>
-        <span>{displayRank}</span>
-        <span className="text-xs leading-none">{suitSymbol}</span>
+      {/* Top-left */}
+      <div className="absolute top-1 left-1.5 flex flex-col items-center leading-none opacity-90">
+        <span className={`${sz.rank} font-bold tracking-tighter`}>{displayRank}</span>
+        <span className={`${sz.suit}`}>{suitSymbol}</span>
       </div>
 
-      {/* Center suit */}
-      <div className={`${sz.suit} text-center leading-none`}>{suitSymbol}</div>
-
-      {/* Bottom-right rank+suit (rotated) */}
-      <div
-        className={`${sz.rank} font-bold leading-none flex flex-col items-end`}
-        style={{ transform: 'rotate(180deg)' }}
-      >
-        <span>{displayRank}</span>
-        <span className="text-xs leading-none">{suitSymbol}</span>
+      {/* Bottom-right */}
+      <div className="absolute bottom-1 right-1.5 flex flex-col items-center leading-none opacity-90 rotate-180">
+        <span className={`${sz.rank} font-bold tracking-tighter`}>{displayRank}</span>
+        <span className={`${sz.suit}`}>{suitSymbol}</span>
       </div>
     </div>
   );

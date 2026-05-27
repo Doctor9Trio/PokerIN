@@ -112,6 +112,10 @@ class PokerConsumer(AsyncWebsocketConsumer):
         # Send current table state to the joining player
         await self.send_table_state(state)
 
+        # Unstick the game if it was stuck in SHOWDOWN
+        if state.get('game_stage') == 'SHOWDOWN':
+            await self._trigger_showdown(state)
+
         # If it's my turn, send ACTION_REQUIRED
         player = self._find_me(state)
         if player and state.get('current_turn') == player['seat_index']:
@@ -200,17 +204,7 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
         # Handle showdown result
         if state['game_stage'] == 'SHOWDOWN':
-            await self.broadcast_hand_result(state)
-            # Persist winners to DB and credit wallets
-            await self._settle_hand(state)
-            # After 5s delay, reset for next hand
-            await asyncio.sleep(5)
-            state = GameEngine.reset_for_next_hand(get_state(self.invite_code))
-            save_state(self.invite_code, state)
-            await self.broadcast_table_state(state)
-            
-            # Automatically start next hand if 2+ players still have chips
-            await self._check_and_start_hand(state)
+            await self._trigger_showdown(state)
             return
 
         await self.broadcast_table_state(state)
@@ -385,6 +379,11 @@ class PokerConsumer(AsyncWebsocketConsumer):
         try:
             state = GameEngine.process_action(state, player['seat_index'], action)
             save_state(self.invite_code, state)
+            
+            if state['game_stage'] == 'SHOWDOWN':
+                await self._trigger_showdown(state)
+                return
+                
             await self.broadcast_table_state(state)
             if state['game_stage'] not in ('SHOWDOWN', 'WAITING'):
                 await self._notify_current_player(state)
@@ -445,6 +444,23 @@ class PokerConsumer(AsyncWebsocketConsumer):
                 await self._notify_current_player(state)
             except ValueError as e:
                 pass # Not enough players met criteria during start_new_hand
+
+    async def _trigger_showdown(self, state: dict):
+        """Handle showdown broadcasts and trigger the background delay to start the next hand."""
+        await self.broadcast_hand_result(state)
+        await self._settle_hand(state)
+        asyncio.create_task(self._delayed_next_hand())
+
+    async def _delayed_next_hand(self):
+        """Wait 5 seconds, then reset table and start next hand automatically."""
+        await asyncio.sleep(5)
+        # Fetch fresh state in case of concurrent updates
+        state = get_state(self.invite_code)
+        if state and state.get('game_stage') == 'SHOWDOWN':
+            state = GameEngine.reset_for_next_hand(state)
+            save_state(self.invite_code, state)
+            await self.broadcast_table_state(state)
+            await self._check_and_start_hand(state)
 
     async def _notify_current_player(self, state: dict):
         """Send ACTION_REQUIRED to the current player's private channel."""

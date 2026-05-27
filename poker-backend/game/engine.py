@@ -412,6 +412,22 @@ class GameEngine:
         community = cards_to_treys(state['community_cards'])
         active = get_active_players(state)
 
+        # If everyone else folded, the last remaining player wins the pot outright
+        if len(active) == 1:
+            winner = active[0]
+            amount = Decimal(state['pot'])
+            winner['stack'] = str(Decimal(winner['stack']) + amount)
+            winners_info = [{
+                'seat_index': winner['seat_index'],
+                'user_id': winner['user_id'],
+                'username': winner['username'],
+                'amount_won': str(amount),
+                'hand_rank': 'Default Win (Opponents Folded)',
+            }]
+            state['winners'] = winners_info
+            state['game_stage'] = 'SHOWDOWN'
+            return state
+
         best_rank = 7463  # worst possible (higher = worse in treys)
         best_players = []
 

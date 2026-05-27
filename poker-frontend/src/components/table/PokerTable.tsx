@@ -1,9 +1,10 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PlayerSeat } from './PlayerSeat';
 import { CommunityCards } from './CommunityCards';
 import { ChipStack } from '../shared/ChipStack';
 import { ActionConsole } from '../controls/ActionConsole';
+import { useGameStore } from '../../store/gameStore';
 import type { TableState, PlayerAction } from '../../types/poker';
 
 interface PokerTableProps {
@@ -41,6 +42,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   onReady,
 }) => {
   const myPlayer = tableState.players.find((p) => p.user_id === myUserId);
+  const { lastWinners } = useGameStore();
   const isMyTurn = tableState.current_turn === myPlayer?.seat_index;
 
   const totalPot = parseFloat(tableState.pot) +
@@ -70,24 +72,47 @@ export const PokerTable: React.FC<PokerTableProps> = ({
         >
           {/* Center content: pot + community cards */}
           <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-4"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none"
           >
-            {/* Pot display */}
-            {totalPot > 0 && (
+            {/* Center Pot display */}
+            {totalPot > 0 && tableState.game_stage !== 'SHOWDOWN' && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="flex flex-col items-center gap-1"
+                exit={{ scale: 0 }}
+                className="flex flex-col items-center gap-1 z-10"
               >
                 <span
-                  className="text-xs font-bold uppercase tracking-widest"
-                  style={{ color: 'rgba(212,175,55,0.5)' }}
+                  className="text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-slate-900/60 border border-slate-700 backdrop-blur-md shadow-lg"
+                  style={{ color: '#d4af37' }}
                 >
                   Main Pot
                 </span>
                 <ChipStack amount={tableState.pot} animate />
               </motion.div>
             )}
+
+            {/* Winning Pot Animation (Slides to Winner) */}
+            <AnimatePresence>
+              {tableState.game_stage === 'SHOWDOWN' && lastWinners.length > 0 && (
+                <>
+                  {lastWinners.map((winner) => {
+                    const pos = SEAT_POSITIONS_6[winner.seat_index] || SEAT_POSITIONS_6[0];
+                    return (
+                      <motion.div
+                        key={`pot-anim-${tableState.hand_number}-${winner.user_id}`}
+                        initial={{ top: '50%', left: '50%', scale: 1.2, opacity: 1 }}
+                        animate={{ top: pos.top, left: pos.left, scale: 0.3, opacity: 0 }}
+                        transition={{ duration: 1.2, ease: "easeIn", delay: 1 }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50 flex flex-col items-center"
+                      >
+                        <ChipStack amount={winner.amount_won} />
+                      </motion.div>
+                    );
+                  })}
+                </>
+              )}
+            </AnimatePresence>
 
             {/* Community cards */}
             <CommunityCards
@@ -96,12 +121,12 @@ export const PokerTable: React.FC<PokerTableProps> = ({
             />
 
             {/* Side pots */}
-            {tableState.side_pots.length > 1 && (
-              <div className="flex gap-3">
+            {tableState.side_pots.length > 1 && tableState.game_stage !== 'SHOWDOWN' && (
+              <div className="flex gap-3 z-10">
                 {tableState.side_pots.map((sp, i) => (
-                  <div key={i} className="flex flex-col items-center">
-                    <span className="text-xs" style={{ color: '#64748b' }}>
-                      Side Pot {i + 1}
+                  <div key={i} className="flex flex-col items-center px-2 py-1 bg-slate-900/60 rounded-lg">
+                    <span className="text-[10px] font-bold" style={{ color: '#94a3b8' }}>
+                      SIDE POT {i + 1}
                     </span>
                     <ChipStack amount={sp.amount} />
                   </div>
@@ -112,8 +137,8 @@ export const PokerTable: React.FC<PokerTableProps> = ({
             {/* Waiting message */}
             {tableState.game_stage === 'WAITING' && (
               <div
-                className="text-sm font-semibold"
-                style={{ color: 'rgba(212,175,55,0.6)' }}
+                className="text-sm font-semibold px-4 py-2 rounded-full bg-slate-900/80 border border-slate-700 shadow-lg"
+                style={{ color: '#d4af37' }}
               >
                 Waiting for players...
               </div>

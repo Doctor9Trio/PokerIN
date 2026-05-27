@@ -10,16 +10,17 @@ interface ChipStackProps {
 interface ChipDenomination {
   value: number;
   color: string;
-  border: string;
+  borderColor: string;
   label: string;
 }
 
+// More premium casino colors
 const DENOMINATIONS: ChipDenomination[] = [
-  { value: 5000, color: '#a855f7', border: '#c084fc', label: '5K' },
-  { value: 1000, color: '#1c1917', border: '#78716c', label: '1K' },
-  { value:  500, color: '#16a34a', border: '#22c55e', label: '500' },
-  { value:  100, color: '#dc2626', border: '#f87171', label: '100' },
-  { value:   50, color: '#2563eb', border: '#60a5fa', label: '50' },
+  { value: 5000, color: '#9333ea', borderColor: '#d8b4fe', label: '5K' },
+  { value: 1000, color: '#1e293b', borderColor: '#94a3b8', label: '1K' },
+  { value:  500, color: '#16a34a', borderColor: '#86efac', label: '500' },
+  { value:  100, color: '#dc2626', borderColor: '#fca5a5', label: '100' },
+  { value:   50, color: '#2563eb', borderColor: '#93c5fd', label: '50' },
 ];
 
 function breakdownChips(amount: number): Array<{ denom: ChipDenomination; count: number }> {
@@ -43,24 +44,30 @@ const Chip: React.FC<{ denom: ChipDenomination; index: number; animate: boolean 
   animate,
 }) => (
   <motion.div
-    initial={animate ? { y: -20, opacity: 0 } : false}
+    initial={animate ? { y: -30, opacity: 0 } : false}
     animate={{ y: 0, opacity: 1 }}
     transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 20 }}
     style={{
-      width: 28,
-      height: 28,
+      width: 32,
+      height: 32,
       borderRadius: '50%',
-      background: denom.color,
-      border: `2px dashed ${denom.border}`,
-      boxShadow: `2px 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)`,
+      background: `radial-gradient(circle at 30% 30%, ${denom.borderColor} 0%, ${denom.color} 60%, #000 150%)`,
+      border: `2px dashed rgba(255,255,255,0.4)`,
+      boxShadow: `
+        inset 0 0 0 3px ${denom.color},
+        1px ${2 + index}px 4px rgba(0,0,0,0.6),
+        0 0 2px rgba(0,0,0,0.8)
+      `,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: 7,
-      fontWeight: 700,
-      color: 'rgba(255,255,255,0.85)',
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#fff',
+      textShadow: '0 1px 2px rgba(0,0,0,0.8)',
       flexShrink: 0,
-      marginLeft: index > 0 ? -8 : 0, // Stack chips
+      marginLeft: index > 0 ? -12 : 0, // Tighter stacking
+      marginTop: index > 0 ? -3 : 0, // Slight vertical stagger to look 3D
       position: 'relative',
       zIndex: index,
     }}
@@ -82,9 +89,9 @@ export const ChipStack: React.FC<ChipStackProps> = ({
   const chips = breakdownChips(numAmount);
 
   return (
-    <div className={`flex flex-col items-center gap-1 ${className}`}>
+    <div className={`flex flex-col items-center justify-center gap-1.5 ${className}`}>
       {/* Chip visuals */}
-      <div className="flex items-center">
+      <div className="flex items-center drop-shadow-md">
         {chips.flatMap(({ denom, count }) =>
           Array.from({ length: count }, (_, i) => (
             <Chip
@@ -97,12 +104,17 @@ export const ChipStack: React.FC<ChipStackProps> = ({
         )}
       </div>
       {/* Amount label */}
-      <span
-        className="text-xs font-bold"
-        style={{ color: '#d4af37', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+      <div
+        className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider"
+        style={{ 
+          background: 'rgba(0,0,0,0.5)',
+          color: '#fcd34d', 
+          border: '1px solid rgba(252,211,77,0.3)',
+          backdropFilter: 'blur(4px)'
+        }}
       >
         ₹{numAmount.toLocaleString('en-IN')}
-      </span>
+      </div>
     </div>
   );
 };
