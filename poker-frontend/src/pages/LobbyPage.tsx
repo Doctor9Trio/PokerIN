@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 import { LogOut, Plus, DoorOpen } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
 
 export const LobbyPage: React.FC = () => {
   const { token, username, balance, setBalance, logout } = useAuthStore();

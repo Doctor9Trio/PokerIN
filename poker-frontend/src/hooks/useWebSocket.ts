@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { playSound } from '../audio/audioManager';
 import type { ServerMessage } from '../types/poker';
 
-const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+const WS_BASE = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000`;
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 

@@ -118,6 +118,8 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Mark player as disconnected. Give them a reconnect window."""
+        if not hasattr(self, 'invite_code'):
+            return
         state = get_state(self.invite_code)
         if state:
             player = self._find_me(state)

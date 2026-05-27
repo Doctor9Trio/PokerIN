@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
 
 type Mode = 'login' | 'register';
 
