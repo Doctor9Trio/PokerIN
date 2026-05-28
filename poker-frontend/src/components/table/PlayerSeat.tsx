@@ -138,7 +138,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
             <motion.div 
               initial={{ scale: 0, y: 10, rotate: -20 }}
               animate={{ scale: 1, y: 0, rotate: 15 }}
-              transition={{ type: 'spring', bounce: 0.6 }}
+              transition={{ type: 'spring', bounce: 0.6, delay: 0.5 }}
               className="absolute -top-3 -right-3 text-3xl drop-shadow-xl z-30"
               style={{ filter: 'drop-shadow(0 0 10px rgba(212,175,55,0.8))' }}
             >
@@ -153,7 +153,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
                 initial={{ opacity: 0, y: 0, scale: 0.5 }}
                 animate={{ opacity: 1, y: -45, scale: 1.1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
+                transition={{ duration: 0.6, ease: "easeOut", delay: 2.0 }}
                 className="absolute top-0 left-1/2 -translate-x-1/2 font-black text-green-400 drop-shadow-lg whitespace-nowrap z-50 text-lg flex flex-col items-center"
                 style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
               >

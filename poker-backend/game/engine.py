@@ -17,10 +17,12 @@ evaluator = Evaluator()
 RANKS = '23456789TJQKA'
 SUITS = 'hdcs'  # hearts, diamonds, clubs, spades
 
+import secrets
+
 def build_deck() -> List[str]:
     """Return a list of 52 card strings in the format used by this engine (e.g. 'Ah', 'Ks', '2c')."""
     deck = [f'{r}{s}' for r in RANKS for s in SUITS]
-    random.shuffle(deck)
+    secrets.SystemRandom().shuffle(deck)
     return deck
 
 

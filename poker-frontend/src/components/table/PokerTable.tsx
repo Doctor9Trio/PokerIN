@@ -75,10 +75,11 @@ export const PokerTable: React.FC<PokerTableProps> = ({
             className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none"
           >
             {/* Center Pot display */}
-            {totalPot > 0 && tableState.game_stage !== 'SHOWDOWN' && (
+            {totalPot > 0 && (
               <motion.div
                 initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+                animate={{ scale: tableState.game_stage === 'SHOWDOWN' ? 0 : 1, opacity: tableState.game_stage === 'SHOWDOWN' ? 0 : 1 }}
+                transition={{ delay: tableState.game_stage === 'SHOWDOWN' ? 1.5 : 0, duration: 0.2 }}
                 exit={{ scale: 0 }}
                 className="flex flex-col items-center gap-1 z-10"
               >
@@ -101,9 +102,9 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                     return (
                       <motion.div
                         key={`pot-anim-${tableState.hand_number}-${winner.user_id}`}
-                        initial={{ top: '50%', left: '50%', scale: 1.2, opacity: 1 }}
-                        animate={{ top: pos.top, left: pos.left, scale: 0.3, opacity: 0 }}
-                        transition={{ duration: 1.2, ease: "easeIn", delay: 1 }}
+                        initial={{ top: '50%', left: '50%', scale: 1, opacity: 0 }}
+                        animate={{ top: pos.top, left: pos.left, scale: 0.2, opacity: [0, 1, 1, 0] }}
+                        transition={{ duration: 0.7, ease: "easeIn", delay: 1.5, times: [0, 0.1, 0.8, 1] }}
                         className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50 flex flex-col items-center"
                       >
                         <ChipStack amount={winner.amount_won} />
