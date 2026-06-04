@@ -41,9 +41,16 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   onAction,
   onReady,
 }) => {
-  const myPlayer = tableState.players.find((p) => p.user_id === myUserId);
+  const myPlayer = tableState.players.find((p) => Number(p.user_id) === Number(myUserId));
   const { lastWinners } = useGameStore();
   const isMyTurn = tableState.current_turn === myPlayer?.seat_index;
+  const mySeatIndex = myPlayer ? myPlayer.seat_index : 0;
+
+  // Helper to get normalized position so the local player is always at the bottom center (index 0)
+  const getNormalizedSeatPosition = (actualSeatIndex: number) => {
+    const visualIndex = (actualSeatIndex - mySeatIndex + 6) % 6;
+    return SEAT_POSITIONS_6[visualIndex] || SEAT_POSITIONS_6[0];
+  };
 
   const totalPot = parseFloat(tableState.pot) +
     tableState.players.reduce((s, p) => s + parseFloat(p.current_bet || '0'), 0);
@@ -98,7 +105,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
               {tableState.game_stage === 'SHOWDOWN' && lastWinners.length > 0 && (
                 <>
                   {lastWinners.map((winner) => {
-                    const pos = SEAT_POSITIONS_6[winner.seat_index] || SEAT_POSITIONS_6[0];
+                    const pos = getNormalizedSeatPosition(winner.seat_index);
                     return (
                       <motion.div
                         key={`pot-anim-${tableState.hand_number}-${winner.user_id}`}
@@ -148,15 +155,15 @@ export const PokerTable: React.FC<PokerTableProps> = ({
 
           {/* Player seats */}
           {tableState.players.map((player) => {
-            const pos = SEAT_POSITIONS_6[player.seat_index] || SEAT_POSITIONS_6[0];
+            const pos = getNormalizedSeatPosition(player.seat_index);
             return (
               <PlayerSeat
                 key={player.user_id}
                 player={player}
-                isCurrentUser={player.user_id === myUserId}
+                isCurrentUser={Number(player.user_id) === Number(myUserId)}
                 isActiveTurn={tableState.current_turn === player.seat_index}
                 isDealer={tableState.dealer_button === player.seat_index}
-                myCards={player.user_id === myUserId ? myCards : undefined}
+                myCards={Number(player.user_id) === Number(myUserId) ? myCards : undefined}
                 turnTimeoutSeconds={actionRequired?.timeout_seconds ?? 30}
                 gameStage={tableState.game_stage}
                 style={{
