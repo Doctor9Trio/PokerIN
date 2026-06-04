@@ -7,22 +7,17 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from game.state_manager import get_state
 from .models import PokerTable
 from .serializers import CreateTableSerializer, TableInfoSerializer
 
 
-def _get_redis():
-    return redis.from_url(settings.CHANNEL_LAYERS['default']['CONFIG']['hosts'][0])
-
-
 def _get_active_seat_count(invite_code: str) -> int:
-    """Count connected players from Redis game state."""
+    """Count connected players from game state."""
     try:
-        r = _get_redis()
-        state_raw = r.get(f'game_state:{invite_code}')
-        if not state_raw:
+        state = get_state(invite_code)
+        if not state:
             return 0
-        state = json.loads(state_raw)
         return len([p for p in state.get('players', []) if p.get('is_connected')])
     except Exception:
         return 0

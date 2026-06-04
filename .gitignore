@@ -10,8 +10,26 @@ __pycache__/
 *$py.class
 *.sqlite3
 db.sqlite3
-/venv/
-/.venv/
+venv/
+.venv/
 env/
 .idea/
 .vscode/
+# Added by code-review-graph
+.code-review-graph/
+
+# Tooling
+.agent/
+.claude/
+.gemini/
+.qoder/
+.kiro/
+.mcp.json
+.opencode.json
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QODER.md
+.cursorrules
+.windsurfrules
+.github/code-review-graph.instruction.md
