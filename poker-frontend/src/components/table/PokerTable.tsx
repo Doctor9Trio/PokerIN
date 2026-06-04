@@ -85,9 +85,14 @@ export const PokerTable: React.FC<PokerTableProps> = ({
             {totalPot > 0 && (
               <motion.div
                 initial={{ scale: 0 }}
-                animate={{ scale: tableState.game_stage === 'SHOWDOWN' ? 0 : 1, opacity: tableState.game_stage === 'SHOWDOWN' ? 0 : 1 }}
-                transition={{ delay: tableState.game_stage === 'SHOWDOWN' ? 1.5 : 0, duration: 0.2 }}
-                exit={{ scale: 0 }}
+                animate={{ 
+                  scale: tableState.game_stage === 'SHOWDOWN' ? 1 : 1, 
+                  opacity: tableState.game_stage === 'SHOWDOWN' ? 0 : 1 
+                }}
+                transition={{ 
+                  delay: tableState.game_stage === 'SHOWDOWN' ? 1.5 : 0, 
+                  duration: 0.1 
+                }}
                 className="flex flex-col items-center gap-1 z-10"
               >
                 <span
@@ -109,10 +114,19 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                     return (
                       <motion.div
                         key={`pot-anim-${tableState.hand_number}-${winner.user_id}`}
-                        initial={{ top: '50%', left: '50%', scale: 1, opacity: 0 }}
-                        animate={{ top: pos.top, left: pos.left, scale: 0.2, opacity: [0, 1, 1, 0] }}
-                        transition={{ duration: 0.7, ease: "easeIn", delay: 1.5, times: [0, 0.1, 0.8, 1] }}
-                        className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50 flex flex-col items-center"
+                        initial={{ top: '38%', left: '50%', scale: 1, opacity: 0 }}
+                        animate={{ 
+                          top: pos.top, 
+                          left: pos.left, 
+                          scale: 1, 
+                          opacity: [0, 1, 1, 0] 
+                        }}
+                        transition={{ 
+                          top: { duration: 0.8, delay: 1.5, ease: [0.25, 1, 0.5, 1] },
+                          left: { duration: 0.8, delay: 1.5, ease: [0.25, 1, 0.5, 1] },
+                          opacity: { duration: 0.8, delay: 1.5, times: [0, 0.01, 0.8, 1] }
+                        }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50 flex flex-col items-center drop-shadow-2xl"
                       >
                         <ChipStack amount={winner.amount_won} />
                       </motion.div>

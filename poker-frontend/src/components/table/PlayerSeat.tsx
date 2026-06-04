@@ -104,7 +104,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
       <div className="relative flex flex-col items-center">
         {/* Timer ring behind avatar */}
         {isActiveTurn && (
-          <div className="absolute top-7 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
             <TimerRing
               totalSeconds={turnTimeoutSeconds}
               remainingSeconds={remainingTime}
@@ -125,9 +125,8 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
               background: isCurrentUser ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #334155, #1e293b)',
               border: isCurrentUser
                 ? '3px solid rgba(212,175,55,0.8)'
-                : isActiveTurn
-                  ? '3px solid #00ff88'
-                  : '3px solid rgba(255,255,255,0.1)',
+                : '3px solid rgba(255,255,255,0.1)',
+              boxShadow: isActiveTurn ? '0 0 15px rgba(0,255,136,0.2)' : 'none',
             }}
           >
             {player.username.charAt(0).toUpperCase()}
@@ -136,11 +135,11 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
           {/* Winner Crown */}
           {isWinner && (
             <motion.div 
-              initial={{ scale: 0, y: 10, rotate: -20 }}
-              animate={{ scale: 1, y: 0, rotate: 15 }}
-              transition={{ type: 'spring', bounce: 0.6, delay: 0.5 }}
-              className="absolute -top-3 -right-3 text-3xl drop-shadow-xl z-30"
-              style={{ filter: 'drop-shadow(0 0 10px rgba(212,175,55,0.8))' }}
+              initial={{ scale: 0, y: -20, opacity: 0 }}
+              animate={{ scale: 1.2, y: 0, opacity: 1 }}
+              transition={{ type: 'spring', bounce: 0.6, delay: 0.8 }}
+              className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl drop-shadow-2xl z-40"
+              style={{ filter: 'drop-shadow(0 0 15px rgba(255, 215, 0, 1))' }}
             >
               👑
             </motion.div>
@@ -150,16 +149,18 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
           <AnimatePresence>
             {isWinner && gameStage === 'SHOWDOWN' && (
               <motion.div 
-                initial={{ opacity: 0, y: 0, scale: 0.5 }}
-                animate={{ opacity: 1, y: -45, scale: 1.1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.6, ease: "easeOut", delay: 2.0 }}
-                className="absolute top-0 left-1/2 -translate-x-1/2 font-black text-green-400 drop-shadow-lg whitespace-nowrap z-50 text-lg flex flex-col items-center"
-                style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                initial={{ opacity: 0, y: 20, scale: 0.5 }}
+                animate={{ opacity: [0, 1, 1, 0], y: -60, scale: 1.3 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2.5, ease: "easeOut", delay: 1.2, times: [0, 0.2, 0.8, 1] }}
+                className="absolute top-0 left-1/2 -translate-x-1/2 font-black text-green-400 drop-shadow-2xl whitespace-nowrap z-50 text-xl flex flex-col items-center"
+                style={{ textShadow: '0 0 10px #22c55e, 0 0 20px #16a34a', WebkitTextStroke: '1px #064e3b' }}
               >
                 <span>+ ₹{winnerInfo.amount_won}</span>
                 {winnerInfo.hand_rank && (
-                  <span className="text-[10px] text-yellow-300 mt-0.5">{winnerInfo.hand_rank.toUpperCase()}</span>
+                  <span className="text-[12px] text-yellow-300 mt-1" style={{ textShadow: '0 0 8px #fde047', WebkitTextStroke: '0px' }}>
+                    {winnerInfo.hand_rank.toUpperCase()}
+                  </span>
                 )}
               </motion.div>
             )}

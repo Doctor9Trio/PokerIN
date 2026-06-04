@@ -43,14 +43,14 @@ export const TimerRing: React.FC<TimerRingProps> = ({
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', overflow: 'visible' }}>
         {/* Background track */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(255,255,255,0.1)"
+          stroke="rgba(255,255,255,0.08)"
           strokeWidth={strokeWidth}
         />
         {/* Progress arc */}
@@ -63,10 +63,16 @@ export const TimerRing: React.FC<TimerRingProps> = ({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          animate={{ strokeDashoffset: offset, stroke: color }}
-          transition={{ duration: 0.5, ease: 'linear' }}
+          animate={{ 
+            strokeDashoffset: offset, 
+            stroke: color
+          }}
+          transition={{ 
+            duration: 0.5, 
+            ease: 'linear'
+          }}
           style={{
-            filter: `drop-shadow(0 0 4px ${color})`,
+            filter: `drop-shadow(0 0 6px ${color})`,
           }}
         />
       </svg>
