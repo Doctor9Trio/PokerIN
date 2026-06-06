@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wifi, WifiOff, Settings, Volume2, VolumeX, Layers } from 'lucide-react';
+import { X, WifiOff, Settings, Volume2, VolumeX, Layers, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { useGameStore } from '../../store/gameStore';
+import { PlayerProfileCard } from './PlayerProfileCard';
 
 // ─── Backdrop ─────────────────────────────────────────────────────────────────
 
@@ -267,6 +268,31 @@ const DisconnectModal: React.FC = () => {
   );
 };
 
+// ─── Player Profile Modal Wrapper ────────────────────────────────────────────
+
+/**
+ * Reads selectedPlayer from uiStore and delegates to PlayerProfileCard.
+ * Kept thin so PlayerProfileCard itself stays store-agnostic.
+ */
+const PlayerProfileModal: React.FC = () => {
+  const { selectedPlayer, closeModal } = useUIStore();
+
+  const handleReport = (userId: number) => {
+    // TODO: hook into reporting API endpoint
+    console.warn('[Report] User reported:', userId);
+    closeModal();
+  };
+
+  return (
+    <PlayerProfileCard
+      player={selectedPlayer}
+      isVisible={!!selectedPlayer}
+      onClose={closeModal}
+      onReport={handleReport}
+    />
+  );
+};
+
 // ─── Global Modal Container ───────────────────────────────────────────────────
 
 /**
@@ -285,7 +311,8 @@ export const GlobalModalContainer: React.FC = () => {
         return <SettingsModal key="SETTINGS" />;
       case 'DISCONNECT_ALERT':
         return <DisconnectModal key="DISCONNECT_ALERT" />;
-      // Future modals: case 'BUY_IN': return <BuyInModal key="BUY_IN" />;
+      case 'PLAYER_PROFILE':
+        return <PlayerProfileModal key="PLAYER_PROFILE" />;
       default:
         return null;
     }

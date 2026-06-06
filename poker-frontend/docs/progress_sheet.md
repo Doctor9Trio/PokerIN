@@ -2,6 +2,32 @@
 
 ---
 
+## Sprint: 2026-06-07_05:12:IST
+
+**Project Phase:** Phase 3 — Social & Communication (Integration)
+**Status:** ✅ COMPLETE — `tsc --noEmit` passed with 0 errors
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry appended |
+| `src/store/uiStore.ts` | MODIFIED | Added `selectedPlayer: PlayerProfileData \| null` payload + `openPlayerProfile()` typed action |
+| `src/components/ui/GlobalModalContainer.tsx` | MODIFIED | Added `PLAYER_PROFILE` case → renders `<PlayerProfileCard />` driven by `uiStore.selectedPlayer` |
+| `src/pages/GameTablePage.tsx` | MODIFIED | Chat sidebar integrated as fixed right-rail tray; `sendChat` wired from hook; Buy-in modal migrated to pure Tailwind; all inline styles removed from button bar |
+| `src/components/table/PlayerSeat.tsx` | MODIFIED | Avatar div upgraded to `<button>`; `onClick` → `openPlayerProfile()`; `cursor-pointer` + `group` hover ring added; animations/timer/cards untouched |
+
+### Changes Needed / Next Steps — Phase 4
+- [ ] Global Leaderboard page (`/leaderboard`) with server-side ranking API
+- [ ] Player stats persistence — backend endpoint for win-rate, hands played, biggest pot
+- [ ] Tutorial / onboarding overlay for first-time users
+- [ ] Friends list panel + invite-by-username flow
+- [ ] Backend `SEND_CHAT_MESSAGE` consumer handler (Django Channels)
+- [ ] Token refresh / silent re-auth on 401 (long session support)
+
+---
+
+---
+
 ## Sprint: 2026-06-07_04:56:IST
 
 **Project Phase:** Phase 3 — Social, Communication & Title UI

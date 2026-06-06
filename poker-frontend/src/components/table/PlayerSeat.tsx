@@ -4,6 +4,8 @@ import { PlayingCard } from '../shared/PlayingCard';
 import { ChipStack } from '../shared/ChipStack';
 import { TimerRing } from '../controls/TimerRing';
 import { useGameStore } from '../../store/gameStore';
+import { useUIStore } from '../../store/uiStore';
+import type { PlayerProfileData } from '../ui/PlayerProfileCard';
 import type { PlayerState } from '../../types/poker';
 
 interface PlayerSeatProps {
@@ -75,9 +77,20 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
 }) => {
   const [remainingTime, setRemainingTime] = useState(turnTimeoutSeconds);
   const { lastWinners } = useGameStore();
+  const { openPlayerProfile } = useUIStore();
 
   const winnerInfo = lastWinners.find(w => w.user_id === player.user_id);
   const isWinner = !!winnerInfo;
+
+  const handleAvatarClick = () => {
+    const profileData: PlayerProfileData = {
+      userId: player.user_id,
+      username: player.username,
+      balance: player.stack,
+      // winRate / handsPlayed / biggestPot populated by future stats API
+    };
+    openPlayerProfile(profileData);
+  };
 
   useEffect(() => {
     if (!isActiveTurn) {
@@ -118,19 +131,35 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
         <div className="relative z-10">
           <StatusBadge player={player} gameStage={gameStage} />
           
-          <div
-            className={`player-avatar ${isActiveTurn ? 'active' : ''}`}
-            style={{
-              opacity: player.is_folded ? 0.5 : 1,
-              background: isCurrentUser ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #334155, #1e293b)',
-              border: isCurrentUser
-                ? '3px solid rgba(212,175,55,0.8)'
-                : '3px solid rgba(255,255,255,0.1)',
-              boxShadow: isActiveTurn ? '0 0 15px rgba(0,255,136,0.2)' : 'none',
-            }}
+          {/* Clickable avatar — opens PlayerProfileCard modal */}
+          <button
+            onClick={handleAvatarClick}
+            title={`View ${player.username}'s profile`}
+            aria-label={`Open profile for ${player.username}`}
+            className="group relative focus:outline-none"
           >
-            {player.username.charAt(0).toUpperCase()}
-          </div>
+            {/* Hover ring — appears on hover, never disrupts timer ring (z-0) */}
+            <span
+              className="
+                absolute inset-0 rounded-full scale-110
+                ring-2 ring-white/0 group-hover:ring-white/20
+                transition-all duration-200 pointer-events-none
+              "
+            />
+            <div
+              className={`player-avatar ${isActiveTurn ? 'active' : ''}`}
+              style={{
+                opacity: player.is_folded ? 0.5 : 1,
+                background: isCurrentUser ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #334155, #1e293b)',
+                border: isCurrentUser
+                  ? '3px solid rgba(212,175,55,0.8)'
+                  : '3px solid rgba(255,255,255,0.1)',
+                boxShadow: isActiveTurn ? '0 0 15px rgba(0,255,136,0.2)' : 'none',
+              }}
+            >
+              {player.username.charAt(0).toUpperCase()}
+            </div>
+          </button>
 
           {/* Winner Crown */}
           {isWinner && (
