@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
+import type { ChatMessage } from '../store/gameStore';
 import { useAuthStore } from '../store/authStore';
 import { playSound } from '../audio/audioManager';
 import type { ServerMessage } from '../types/poker';
@@ -7,6 +8,10 @@ import type { ServerMessage } from '../types/poker';
 const WS_BASE = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000`;
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
+
+function makeChatId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export function useWebSocket(inviteCode: string | null) {
   const ws = useRef<WebSocket | null>(null);
@@ -19,7 +24,7 @@ export function useWebSocket(inviteCode: string | null) {
     setMyCards,
     setActionRequired,
     setWinners,
-    addChat,
+    addChatMessage,
     setConnected,
     setConnectionError,
   } = useGameStore();
@@ -35,6 +40,16 @@ export function useWebSocket(inviteCode: string | null) {
       setConnected(true);
       setConnectionError(null);
       reconnectCount.current = 0;
+
+      // Inject a system message on (re)connect
+      const sysMsg: ChatMessage = {
+        id: makeChatId(),
+        username: 'System',
+        message: 'Connected to table.',
+        timestamp: new Date().toISOString(),
+        isSystem: true,
+      };
+      addChatMessage(sysMsg);
     };
 
     socket.onmessage = (event) => {
@@ -66,8 +81,10 @@ export function useWebSocket(inviteCode: string | null) {
           if (msg.players) {
             const currentState = useGameStore.getState().tableState;
             if (currentState) {
-              const newPlayers = currentState.players.map(p => {
-                const updatedP = msg.players.find((mp: any) => mp.seat_index === p.seat_index);
+              const newPlayers = currentState.players.map((p) => {
+                const updatedP = msg.players.find(
+                  (mp: any) => mp.seat_index === p.seat_index
+                );
                 if (updatedP && updatedP.hole_cards && updatedP.hole_cards.length > 0) {
                   return { ...p, hole_cards: updatedP.hole_cards };
                 }
@@ -78,19 +95,52 @@ export function useWebSocket(inviteCode: string | null) {
           }
           break;
 
-        case 'PLAYER_JOINED':
+        case 'PLAYER_JOINED': {
+          const joinMsg: ChatMessage = {
+            id: makeChatId(),
+            username: 'System',
+            message: `${msg.username} joined the table.`,
+            timestamp: new Date().toISOString(),
+            isSystem: true,
+          };
+          addChatMessage(joinMsg);
           break;
+        }
 
-        case 'PLAYER_LEFT':
+        case 'PLAYER_LEFT': {
+          const leftMsg: ChatMessage = {
+            id: makeChatId(),
+            username: 'System',
+            message: `${msg.username} left the table.`,
+            timestamp: new Date().toISOString(),
+            isSystem: true,
+          };
+          addChatMessage(leftMsg);
           break;
+        }
 
-        case 'CHAT_MESSAGE':
-          addChat(msg.username, msg.message);
+        case 'CHAT_MESSAGE': {
+          const chatMsg: ChatMessage = {
+            id: makeChatId(),
+            username: msg.username,
+            message: msg.message,
+            timestamp: new Date().toISOString(),
+            isSystem: false,
+          };
+          addChatMessage(chatMsg);
           break;
+        }
 
         case 'ERROR':
           console.error('[Poker WS Error]', msg.message);
-          alert(msg.message);
+          // Surface as a system chat message instead of a blocking alert
+          addChatMessage({
+            id: makeChatId(),
+            username: 'System',
+            message: `⚠ ${msg.message}`,
+            timestamp: new Date().toISOString(),
+            isSystem: true,
+          });
           break;
       }
     };
@@ -115,12 +165,26 @@ export function useWebSocket(inviteCode: string | null) {
     };
   }, [inviteCode, token]);
 
+  // ── Generic send ────────────────────────────────────────────────────────────
   const send = useCallback((data: object) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(data));
     }
   }, []);
 
+  // ── Chat emitter ─────────────────────────────────────────────────────────────
+  /**
+   * Sends a SEND_CHAT_MESSAGE event to the server.
+   * The server will broadcast it back as a CHAT_MESSAGE to all table members.
+   */
+  const sendChat = useCallback(
+    (message: string) => {
+      send({ type: 'SEND_CHAT_MESSAGE', message: message.trim() });
+    },
+    [send]
+  );
+
+  // ── Disconnect ───────────────────────────────────────────────────────────────
   const disconnect = useCallback(() => {
     if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     ws.current?.close(1000, 'Player left table');
@@ -129,8 +193,15 @@ export function useWebSocket(inviteCode: string | null) {
 
   useEffect(() => {
     connect();
-    return () => { disconnect(); };
+    return () => {
+      disconnect();
+    };
   }, [connect, disconnect]);
 
-  return { send, disconnect, isConnected: useGameStore((s) => s.isConnected) };
+  return {
+    send,
+    sendChat,
+    disconnect,
+    isConnected: useGameStore((s) => s.isConnected),
+  };
 }

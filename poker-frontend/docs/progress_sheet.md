@@ -1,4 +1,33 @@
-# PokerIN — Phase 2 Progress Sheet
+# PokerIN — Progress Sheet
+
+---
+
+## Sprint: 2026-06-07_04:56:IST
+
+**Project Phase:** Phase 3 — Social, Communication & Title UI
+**Status:** ✅ COMPLETE — `tsc --noEmit` passed with 0 errors
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry appended |
+| `src/pages/AuthPage.tsx` | MODIFIED | Full premium Title Screen overhaul — radial felt bg, glassmorphic card, Framer Motion entrance, gold focus states, pulsating CTA |
+| `src/store/gameStore.ts` | MODIFIED | `ChatMessage` typed interface; `addChatMessage()` action; backward-compat `addChat` preserved; strict 50-msg cap |
+| `src/hooks/useWebSocket.ts` | MODIFIED | `CHAT_MESSAGE` → `addChatMessage`; `sendChat(msg)` emitter added to return value |
+| `src/components/game/TableChat.tsx` | NEW | Collapsible real-time chat sidebar; auto-scroll; system vs player styling; 8 quick-emote shortcuts |
+| `src/components/ui/PlayerProfileCard.tsx` | NEW | Reusable profile modal (avatar, balance, stats placeholders, report button) triggered via `uiStore` |
+
+### Changes Needed / Next Steps
+- [ ] Friends List panel + invite-by-username flow
+- [ ] Backend `SEND_CHAT_MESSAGE` consumer handler (Django Channels)
+- [ ] Wire `TableChat` into `GameTablePage` layout with toggle button
+- [ ] Wire `PlayerSeat` avatar click → `openModal('PLAYER_PROFILE')` passing `userId`
+- [ ] `uiStore` modal payload: extend `ModalName` to pass typed data (e.g., `selectedPlayerId`)
+- [ ] Token refresh / silent re-auth on 401 responses
+
+---
+
+## Sprint: 2026-06-07_04:18:IST (Phase 2 — COMPLETE)
 
 ---
 
