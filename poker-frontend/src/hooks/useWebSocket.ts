@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { ChatMessage } from '../store/gameStore';
 import { useAuthStore } from '../store/authStore';
+import { useSessionStore } from '../store/sessionStore';
 import { playSound } from '../audio/audioManager';
 import type { ServerMessage } from '../types/poker';
 
@@ -74,10 +75,48 @@ export function useWebSocket(inviteCode: string | null) {
           setActionRequired(msg);
           break;
 
-        case 'HAND_RESULT':
+        case 'HAND_RESULT': {
           setWinners(msg.winners);
           playSound('pot_win');
           setActionRequired(null);
+
+          // ── Session P&L accounting ────────────────────────────────────────
+          // Use getState() so we never add a hook subscription inside a callback.
+          const myUserId = useAuthStore.getState().userId;
+          const tableStateSnapshot = useGameStore.getState().tableState;
+
+          if (myUserId !== null && tableStateSnapshot) {
+            // Total pot = sum of all amounts won by winners this hand
+            const potSize = msg.winners.reduce(
+              (acc: number, w: { amount_won: string }) =>
+                acc + parseFloat(w.amount_won),
+              0
+            );
+
+            // What the current user bet this street (their chips at risk)
+            const myPlayerSnapshot = tableStateSnapshot.players.find(
+              (p) => p.user_id === myUserId
+            );
+            const myBet = myPlayerSnapshot
+              ? parseFloat(myPlayerSnapshot.current_bet)
+              : 0;
+
+            // What the current user won (0 if they didn't win)
+            const myWinEntry = msg.winners.find(
+              (w: { user_id: number }) => w.user_id === myUserId
+            );
+            const amountWon = myWinEntry ? parseFloat(myWinEntry.amount_won) : 0;
+
+            // Net = winnings minus what was at risk.
+            // If they won the pot: amountWon - myBet (positive profit).
+            // If they folded / lost: 0 - myBet (negative, i.e. a loss).
+            const netProfit = amountWon - myBet;
+
+            // Fire-and-forget — no re-render triggered on the table
+            useSessionStore.getState().recordHandResult(netProfit, potSize);
+          }
+
+          // ── Reveal hole cards on showdown ─────────────────────────────────
           if (msg.players) {
             const currentState = useGameStore.getState().tableState;
             if (currentState) {
@@ -94,6 +133,7 @@ export function useWebSocket(inviteCode: string | null) {
             }
           }
           break;
+        }
 
         case 'PLAYER_JOINED': {
           const joinMsg: ChatMessage = {

@@ -8,6 +8,9 @@ export type ModalName =
   | 'DISCONNECT_ALERT'
   | 'BUY_IN'
   | 'PLAYER_PROFILE'
+  | 'SESSION_SUMMARY'
+  | 'LEADERBOARD'
+  | 'TUTORIAL'
   | null;
 
 export interface UISettings {

@@ -12,6 +12,8 @@ import {
   Zap,
   ChevronRight,
   Hash,
+  Trophy,
+  BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
@@ -401,6 +403,36 @@ export const LobbyPage: React.FC = () => {
             </div>
             <span className="text-xs font-semibold text-slate-300">{username}</span>
           </div>
+
+          {/* Leaderboard */}
+          <button
+            id="btn-leaderboard"
+            onClick={() => openModal('LEADERBOARD')}
+            title="Global Leaderboard"
+            className="
+              p-2 rounded-xl
+              bg-surface-card border border-surface-elevated
+              text-slate-400 hover:text-gold hover:border-gold/30
+              transition-colors
+            "
+          >
+            <Trophy size={16} />
+          </button>
+
+          {/* Tutorial */}
+          <button
+            id="btn-tutorial"
+            onClick={() => openModal('TUTORIAL')}
+            title="How to Play"
+            className="
+              p-2 rounded-xl
+              bg-surface-card border border-surface-elevated
+              text-slate-400 hover:text-slate-200 hover:border-surface-elevated/80
+              transition-colors
+            "
+          >
+            <BookOpen size={16} />
+          </button>
 
           {/* Settings */}
           <button

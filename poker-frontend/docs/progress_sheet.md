@@ -2,6 +2,58 @@
 
 ---
 
+## Sprint: 2026-06-07_05:27:IST
+
+**Project Phase:** Phase 4.1 — Live Data Integration
+**Status:** ✅ COMPLETE — `tsc --noEmit` passed with 0 errors
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry |
+| `src/hooks/useWebSocket.ts` | MODIFIED | `HAND_RESULT` now calls `sessionStore.recordHandResult()` with real P&L and pot size |
+| `src/api/leaderboardService.ts` | NEW | Typed Axios service; `fetchLeaderboard()` + `LeaderboardEntry` interface |
+| `src/components/ui/LeaderboardModal.tsx` | MODIFIED | Mock data removed; `useEffect` fetch on mount; skeleton loader; error fallback; refresh fires live API |
+
+### Changes Needed / Next Steps — Phase 5: Virtual Economy & Cosmetics
+- [ ] Avatar cosmetics system (unlockable borders/initials colours)
+- [ ] Backend `GET /api/leaderboard/` endpoint (aggregate query over wallet balances)
+- [ ] Backend `GET /api/stats/` endpoint (win-rate, hands played per user)
+- [ ] Chip purchase / top-up flow (virtual economy)
+- [ ] Achievement / badge system
+
+---
+
+---
+
+## Sprint: 2026-06-07_05:18:IST
+
+**Project Phase:** Phase 4 — Progression & Retention
+**Status:** ✅ COMPLETE — `tsc --noEmit` passed with 0 errors
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry |
+| `src/store/sessionStore.ts` | NEW | Zustand session tracker — handsPlayed, totalWon/Lost, biggestPot, sessionStartTime, recordHandResult, resetSession |
+| `src/store/uiStore.ts` | MODIFIED | Added `'LEADERBOARD'`, `'SESSION_SUMMARY'`, `'TUTORIAL'` to ModalName union |
+| `src/components/ui/SessionSummaryModal.tsx` | NEW | Post-game summary modal — net P&L (color-coded), duration, hands played, Return to Lobby CTA |
+| `src/components/ui/LeaderboardModal.tsx` | NEW | Scrollable rank table — top 3 gold/silver/bronze styling, mocked data, win-rate column |
+| `src/components/ui/TutorialModal.tsx` | NEW | Tabbed modal — Tab 1: hand rankings visual cards; Tab 2: UI guide for chat/controls/timer |
+| `src/components/ui/GlobalModalContainer.tsx` | MODIFIED | Added `SESSION_SUMMARY`, `LEADERBOARD`, `TUTORIAL` to switch; imported new modals |
+| `src/pages/GameTablePage.tsx` | MODIFIED | Leave Table → opens SESSION_SUMMARY modal instead of navigating immediately |
+| `src/pages/LobbyPage.tsx` | MODIFIED | Added Leaderboard & Tutorial icon buttons to nav bar |
+
+### Changes Needed / Next Steps — Phase 4.1
+- [ ] Hook Leaderboard to real backend aggregate API (`GET /api/leaderboard/`)
+- [ ] Call `sessionStore.recordHandResult()` from `useWebSocket` on `HAND_RESULT` event
+- [ ] Persist session history server-side (Django model + endpoint)
+- [ ] Tutorial step-through overlay for first-time login users
+
+---
+
+---
+
 ## Sprint: 2026-06-07_05:12:IST
 
 **Project Phase:** Phase 3 — Social & Communication (Integration)

@@ -7,6 +7,8 @@ import { TableChat } from '../components/game/TableChat';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store/gameStore';
 import { useAuthStore } from '../store/authStore';
+import { useUIStore } from '../store/uiStore';
+import { useSessionStore } from '../store/sessionStore';
 import type { PlayerAction } from '../types/poker';
 
 // ─── Buy-In Modal ─────────────────────────────────────────────────────────────
@@ -150,6 +152,9 @@ export const GameTablePage: React.FC = () => {
   // Extract sendChat from the hook alongside send
   const { send, sendChat, disconnect } = useWebSocket(inviteCode || null);
 
+  const { openModal } = useUIStore();
+  const { startSession } = useSessionStore();
+
   const hasBoughtIn = React.useRef(false);
   const [showBuyInModal, setShowBuyInModal] = useState(false);
 
@@ -173,6 +178,12 @@ export const GameTablePage: React.FC = () => {
     }
   }, [isConnected, tableState, userId]);
 
+  // ── Start session timer on mount ─────────────────────────────────────────
+  useEffect(() => {
+    startSession();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Cleanup on unmount ────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
@@ -187,9 +198,10 @@ export const GameTablePage: React.FC = () => {
   };
 
   const handleLeave = () => {
+    // Disconnect the socket immediately so no more events come in,
+    // then show the session summary — navigation happens from inside the modal.
     disconnect();
-    reset();
-    navigate('/lobby');
+    openModal('SESSION_SUMMARY');
   };
 
   const handleBuyInConfirm = (amount: number) => {

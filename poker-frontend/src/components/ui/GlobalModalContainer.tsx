@@ -1,10 +1,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, WifiOff, Settings, Volume2, VolumeX, Layers, ShieldAlert } from 'lucide-react';
+import { X, WifiOff, Settings, Volume2, VolumeX, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { useGameStore } from '../../store/gameStore';
 import { PlayerProfileCard } from './PlayerProfileCard';
+import { SessionSummaryModal } from './SessionSummaryModal';
+import { LeaderboardModal } from './LeaderboardModal';
+import { TutorialModal } from './TutorialModal';
 
 // ─── Backdrop ─────────────────────────────────────────────────────────────────
 
@@ -313,6 +316,12 @@ export const GlobalModalContainer: React.FC = () => {
         return <DisconnectModal key="DISCONNECT_ALERT" />;
       case 'PLAYER_PROFILE':
         return <PlayerProfileModal key="PLAYER_PROFILE" />;
+      case 'SESSION_SUMMARY':
+        return <SessionSummaryModal key="SESSION_SUMMARY" />;
+      case 'LEADERBOARD':
+        return <LeaderboardModal key="LEADERBOARD" />;
+      case 'TUTORIAL':
+        return <TutorialModal key="TUTORIAL" />;
       default:
         return null;
     }
