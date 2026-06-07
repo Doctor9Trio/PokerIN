@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { economyService } from '../api/economyService';
 
 // ─── Catalogue definitions ────────────────────────────────────────────────────
 // These are the source-of-truth IDs. Any new cosmetic must be added here.
@@ -101,6 +102,9 @@ interface EconomyState {
   /** Currently equipped cosmetics per category */
   equipped: EquippedCosmetics;
 
+  /** True if a purchase or sync is actively processing */
+  isProcessing: boolean;
+
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   /**
@@ -114,10 +118,13 @@ interface EconomyState {
    * Deducts cost, adds to inventory, and auto-equips it.
    * Returns false if insufficient funds or already owned.
    */
-  purchaseItem: (itemId: string, cost: number) => boolean;
+  purchaseItem: (itemId: string, cost: number) => Promise<boolean>;
 
   /** Add Gold Coins (e.g. from chip packs or bonuses) */
   addCurrency: (amount: number) => void;
+
+  /** Fetch the user's true economy state from the backend */
+  syncEconomy: () => Promise<void>;
 
   /** Debug helper: reset to defaults */
   resetEconomy: () => void;
@@ -140,33 +147,65 @@ const DEFAULT_EQUIPPED: EquippedCosmetics = {
 export const useEconomyStore = create<EconomyState>()(
   persist(
     (set, get) => ({
-      premiumCurrency: 200, // Starting bonus
+      premiumCurrency: 200, // Starting bonus (will be overridden by syncEconomy)
       inventory: DEFAULT_INVENTORY,
       equipped: DEFAULT_EQUIPPED,
+      isProcessing: false,
+
+      syncEconomy: async () => {
+        try {
+          const data = await economyService.fetchPlayerEconomy();
+          set({
+            premiumCurrency: data.gold_coins,
+            // Ensure defaults are always included
+            inventory: Array.from(new Set([...DEFAULT_INVENTORY, ...data.inventory]))
+          });
+        } catch (err) {
+          console.error("Failed to sync economy:", err);
+        }
+      },
 
       equipItem: (category, itemId) => {
         if (!get().inventory.includes(itemId)) return;
-        set((s) => ({
-          equipped: { ...s.equipped, [category]: itemId },
-        }));
+        const newEquipped = { ...get().equipped, [category]: itemId };
+        set({ equipped: newEquipped });
+        // Fire-and-forget backend update
+        economyService.updateEquipped(newEquipped as unknown as Record<string, string>).catch(console.error);
       },
 
-      purchaseItem: (itemId, cost) => {
+      purchaseItem: async (itemId, cost) => {
         const s = get();
         if (s.inventory.includes(itemId)) return false;   // already owned
         if (s.premiumCurrency < cost) return false;        // insufficient funds
-        set({
-          premiumCurrency: s.premiumCurrency - cost,
-          inventory: [...s.inventory, itemId],
-        });
-        // Determine category from catalogue, then auto-equip
-        const item = COSMETIC_CATALOGUE.find((c) => c.id === itemId);
-        if (item) {
-          set((s) => ({
-            equipped: { ...s.equipped, [item.category]: itemId },
-          }));
+
+        set({ isProcessing: true });
+        try {
+          const res = await economyService.processVirtualPurchase(itemId, cost);
+          if (res.success) {
+            set((state) => {
+              const newInventory = [...state.inventory, itemId];
+              let newEquipped = state.equipped;
+              const item = COSMETIC_CATALOGUE.find((c) => c.id === itemId);
+              if (item) {
+                newEquipped = { ...state.equipped, [item.category]: itemId };
+                // Also update backend equipped state
+                economyService.updateEquipped(newEquipped as unknown as Record<string, string>).catch(console.error);
+              }
+              return {
+                premiumCurrency: res.new_balance,
+                inventory: newInventory,
+                equipped: newEquipped,
+                isProcessing: false,
+              };
+            });
+            return true;
+          }
+        } catch (error) {
+          console.error("Purchase failed:", error);
         }
-        return true;
+        
+        set({ isProcessing: false });
+        return false;
       },
 
       addCurrency: (amount) =>

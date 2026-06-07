@@ -3,6 +3,8 @@ import { useGameStore } from '../store/gameStore';
 import type { ChatMessage } from '../store/gameStore';
 import { useAuthStore } from '../store/authStore';
 import { useSessionStore } from '../store/sessionStore';
+import { useEconomyStore } from '../store/economyStore';
+import { economyService } from '../api/economyService';
 import { playSound } from '../audio/audioManager';
 import type { ServerMessage } from '../types/poker';
 
@@ -73,6 +75,18 @@ export function useWebSocket(inviteCode: string | null) {
 
         case 'ACTION_REQUIRED':
           setActionRequired(msg);
+          playSound('your_turn');
+          break;
+
+        case 'PLAYER_ACTION':
+          if (msg.action) {
+            const actionKey = msg.action.toLowerCase();
+            if (actionKey === 'check' || actionKey === 'fold') {
+              playSound(actionKey as any);
+            } else if (actionKey === 'call' || actionKey === 'raise' || actionKey === 'all_in') {
+              playSound('chip_bet');
+            }
+          }
           break;
 
         case 'HAND_RESULT': {
@@ -114,6 +128,20 @@ export function useWebSocket(inviteCode: string | null) {
 
             // Fire-and-forget — no re-render triggered on the table
             useSessionStore.getState().recordHandResult(netProfit, potSize);
+
+            // ── Phase 5.1: Award Gameplay Coins ─────────────────────────────
+            if (netProfit > 0) {
+              const coinsEarned = Math.floor(netProfit * 0.05); // 5% of profit as Gold Coins
+              if (coinsEarned > 0) {
+                economyService.awardGameplayCoins(coinsEarned)
+                  .then((res) => {
+                    if (res.success) {
+                       useEconomyStore.setState({ premiumCurrency: res.new_balance });
+                    }
+                  })
+                  .catch(console.error);
+              }
+            }
           }
 
           // ── Reveal hole cards on showdown ─────────────────────────────────

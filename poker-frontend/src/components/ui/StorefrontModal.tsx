@@ -39,8 +39,8 @@ export const StorefrontModal: React.FC = () => {
     showToast('Equipped successfully', 'success');
   };
 
-  const handlePurchase = (item: CosmeticItem) => {
-    const success = purchaseItem(item.id, item.goldCost);
+  const handlePurchase = async (item: CosmeticItem) => {
+    const success = await purchaseItem(item.id, item.goldCost);
     if (success) {
       showToast(`Purchased ${item.name}`, 'success');
     } else {

@@ -2,6 +2,69 @@
 
 ---
 
+## Sprint: 2026-06-07_06:55:IST
+
+**Project Phase:** Phase 7: Game Feel & Mechanics
+**Status:** IN PROGRESS
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry |
+| `src/audio/audioManager.ts` | MODIFIED | Centralized zero-dependency audio manager respecting UI settings. |
+| `src/hooks/useWebSocket.ts` | MODIFIED | Added audio triggers for game state changes. |
+| `poker-backend/game/bots.py` | NEW | Server-side AI opponent engine with simulated thinking time. |
+| `poker-backend/game/consumers.py` | VERIFIED | Auto-fold and reconnect grace period logic already robustly implemented. |
+
+### Changes Needed / Next Steps
+- Sourcing public domain MP3/WAV files for the audio manager.
+
+---
+
+---
+
+## Sprint: 2026-06-07_06:12:IST
+
+**Project Phase:** Phase 6: Django Backend API
+**Status:** IN PROGRESS
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry |
+| `poker-backend/economy/models.py` | NEW | Added `PlayerEconomy` model linking to User. |
+| `poker-backend/leaderboard/models.py` | NEW | Added `PlayerStats` model linking to User. |
+| `poker-backend/economy/views.py` | NEW | Added DRF endpoints for economy sync, purchase, equip, and award coins. |
+| `poker-backend/leaderboard/views.py` | NEW | Added DRF endpoint for fetching the leaderboard. |
+| `poker-backend/poker_backend/urls.py` | MODIFIED | Added routes for `api/economy/` and `api/leaderboard/`. |
+
+### Changes Needed / Next Steps
+- Running Django migrations and testing the full full-stack loop.
+
+---
+
+---
+
+## Sprint: 2026-06-07_06:05:IST
+
+**Project Phase:** Phase 5.1: Backend Virtual Economy & Earning
+**Status:** IN PROGRESS
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry |
+| `src/api/economyService.ts` | NEW | Clean API service to handle backend database sync for the virtual economy. |
+| `src/store/economyStore.ts` | MODIFIED | Refactored to use async actions and pessimistic UI updates; syncEconomy and purchaseItem. |
+| `src/hooks/useWebSocket.ts` | MODIFIED | Added gameplay earning hook to award Gold Coins on winning hands. |
+
+### Changes Needed / Next Steps
+- Code cleanup and Vercel/Netlify staging deployment.
+
+---
+
+---
+
 ## Sprint: 2026-06-07_05:37:IST
 
 **Project Phase:** Phase 5 — Virtual Economy & Cosmetics

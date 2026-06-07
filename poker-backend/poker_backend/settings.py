@@ -29,6 +29,8 @@ INSTALLED_APPS = [
     'users',
     'tables',
     'game',
+    'economy',
+    'leaderboard',
 ]
 
 MIDDLEWARE = [
