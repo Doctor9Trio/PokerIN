@@ -21,6 +21,7 @@ Message types to client:
 """
 import asyncio
 import json
+import uuid
 import copy
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
@@ -159,6 +160,20 @@ class PokerConsumer(AsyncWebsocketConsumer):
             return
 
         msg_type = data.get('type', '').upper()
+
+        # ── Dev-mode trace ────────────────────────────────────────────────────
+        # Logs every incoming message type so typos surface immediately in the
+        # Django console. Remove or gate behind DEBUG=True for production.
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(
+            '[WS RECV] user=%s table=%s type=%r keys=%s',
+            getattr(self, 'user', '?'),
+            getattr(self, 'invite_code', '?'),
+            msg_type,
+            list(data.keys()),
+        )
+
         handlers = {
             'PLAYER_ACTION': self.handle_player_action,
             'BUY_IN':        self.handle_buy_in,
@@ -170,6 +185,12 @@ class PokerConsumer(AsyncWebsocketConsumer):
         if handler:
             await handler(data)
         else:
+            # Surface unmatched types so frontend mismatches are obvious
+            logger.warning(
+                '[WS RECV] UNHANDLED type=%r from user=%s — check frontend send() calls.',
+                msg_type,
+                getattr(self, 'user', '?'),
+            )
             await self.send_error(f'Unknown message type: {msg_type}')
 
     # ─── Action Handlers ────────────────────────────────────────────────────────
@@ -268,6 +289,7 @@ class PokerConsumer(AsyncWebsocketConsumer):
         message = str(data.get('message', ''))[:200]  # max 200 chars
         await self.channel_layer.group_send(self.room_group, {
             'type': 'broadcast_chat',
+            'id': str(uuid.uuid4()),   # stable ID for client-side deduplication
             'username': self.user.username,
             'message': message,
         })
@@ -352,6 +374,7 @@ class PokerConsumer(AsyncWebsocketConsumer):
     async def broadcast_chat(self, event):
         await self.send_json({
             'type': 'CHAT_MESSAGE',
+            'id': event.get('id'),      # pass through for client deduplication
             'username': event['username'],
             'message': event['message'],
         })

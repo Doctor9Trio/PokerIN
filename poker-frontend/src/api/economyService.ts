@@ -6,6 +6,12 @@ const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostn
 export interface PlayerEconomyResponse {
   gold_coins: number;
   inventory: string[];
+  /** Currently equipped cosmetics returned by GET /api/economy/ */
+  equipped?: {
+    felt: string;
+    cardBack: string;
+    avatarFrame: string;
+  };
 }
 
 export interface PurchaseResponse {

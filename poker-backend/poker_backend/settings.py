@@ -154,3 +154,38 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+# Enables the [WS RECV] traces added to game/consumers.py so incoming message
+# types are visible in the Django runserver console during development.
+# The 'game.consumers' logger is set to DEBUG; all other loggers stay at WARNING.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '[{levelname}] {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'game.consumers': {
+            'handlers': ['console'],
+            # Only emit DEBUG traces when DEBUG=True; silent in production
+            'level': 'DEBUG' if DEBUG else 'WARNING',
+            'propagate': False,
+        },
+        'economy.views': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'WARNING',
+            'propagate': False,
+        },
+    },
+}
+

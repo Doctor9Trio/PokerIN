@@ -155,22 +155,36 @@ export const useEconomyStore = create<EconomyState>()(
       syncEconomy: async () => {
         try {
           const data = await economyService.fetchPlayerEconomy();
+          // The backend GET /api/economy/ returns gold_coins, inventory AND equipped.
+          // We restore all three so the local store is always a faithful mirror of the DB.
           set({
             premiumCurrency: data.gold_coins,
-            // Ensure defaults are always included
-            inventory: Array.from(new Set([...DEFAULT_INVENTORY, ...data.inventory]))
+            inventory: Array.from(new Set([...DEFAULT_INVENTORY, ...data.inventory])),
+            // Only overwrite equipped if the server returned it (handles legacy responses)
+            ...(data.equipped ? { equipped: data.equipped as EquippedCosmetics } : {}),
           });
         } catch (err) {
-          console.error("Failed to sync economy:", err);
+          console.error('[Economy] Failed to sync economy:', err);
         }
       },
 
       equipItem: (category, itemId) => {
-        if (!get().inventory.includes(itemId)) return;
+        if (!get().inventory.includes(itemId)) {
+          console.warn('[Economy] Tried to equip unowned item:', itemId);
+          return;
+        }
         const newEquipped = { ...get().equipped, [category]: itemId };
+        // Optimistic local update for instant UI feedback
         set({ equipped: newEquipped });
-        // Fire-and-forget backend update
-        economyService.updateEquipped(newEquipped as unknown as Record<string, string>).catch(console.error);
+        // Persist to backend, then re-sync to confirm the DB state is correct
+        economyService
+          .updateEquipped(newEquipped as unknown as Record<string, string>)
+          .then(() => get().syncEconomy())
+          .catch((err) => {
+            console.error('[Economy] Failed to update equipped on backend:', err);
+            // Re-sync anyway — corrects any optimistic mismatch
+            get().syncEconomy();
+          });
       },
 
       purchaseItem: async (itemId, cost) => {
@@ -182,28 +196,28 @@ export const useEconomyStore = create<EconomyState>()(
         try {
           const res = await economyService.processVirtualPurchase(itemId, cost);
           if (res.success) {
+            // Optimistic update for instant UI feedback
+            const item = COSMETIC_CATALOGUE.find((c) => c.id === itemId);
             set((state) => {
-              const newInventory = [...state.inventory, itemId];
-              let newEquipped = state.equipped;
-              const item = COSMETIC_CATALOGUE.find((c) => c.id === itemId);
-              if (item) {
-                newEquipped = { ...state.equipped, [item.category]: itemId };
-                // Also update backend equipped state
-                economyService.updateEquipped(newEquipped as unknown as Record<string, string>).catch(console.error);
-              }
+              const newEquipped = item
+                ? { ...state.equipped, [item.category]: itemId }
+                : state.equipped;
               return {
                 premiumCurrency: res.new_balance,
-                inventory: newInventory,
+                inventory: [...state.inventory, itemId],
                 equipped: newEquipped,
                 isProcessing: false,
               };
             });
+            // Re-sync from backend to guarantee DB and client are in perfect agreement.
+            // This also captures any server-side equipped changes.
+            await get().syncEconomy();
             return true;
           }
         } catch (error) {
-          console.error("Purchase failed:", error);
+          console.error('[Economy] Purchase failed:', error);
         }
-        
+
         set({ isProcessing: false });
         return false;
       },

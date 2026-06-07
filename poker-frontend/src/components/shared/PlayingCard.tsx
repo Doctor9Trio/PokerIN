@@ -28,7 +28,10 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   size = 'md',
 }) => {
   const sz = SIZE_MAP[size];
-  const { equipped } = useEconomyStore();
+  // Precise selector: subscribe only to the equipped slice.
+  // Each PlayingCard on the table will only re-render when the player
+  // equips a different card back — not on currency/inventory updates.
+  const equipped = useEconomyStore((state) => state.equipped);
 
   // Face-down card
   if (card === 'XX' || !card) {

@@ -6,7 +6,20 @@ import { useSessionStore } from '../store/sessionStore';
 import { useEconomyStore } from '../store/economyStore';
 import { economyService } from '../api/economyService';
 import { playSound } from '../audio/audioManager';
+import type { SoundKey } from '../audio/audioManager';
 import type { ServerMessage } from '../types/poker';
+
+/**
+ * Stagger a repeated sound across `count` slots, each separated by `delayMs`.
+ * e.g. playStaggered('card_deal', 3, 80) fires at 0 ms, 80 ms, 160 ms.
+ * Each individual call goes through the playSound throttle guard, so
+ * back-to-back stagger windows cannot overlap dangerously.
+ */
+function playStaggered(soundKey: SoundKey, count: number, delayMs = 80): void {
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => playSound(soundKey), i * delayMs);
+  }
+}
 
 const WS_BASE = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000`;
 const RECONNECT_DELAY_MS = 3000;
@@ -20,6 +33,14 @@ export function useWebSocket(inviteCode: string | null) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectCount = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Tracks server-assigned message IDs that have already been rendered.
+   * Prevents the double-render caused by a reconnect firing the same
+   * broadcast twice (once per socket instance) or React Strict Mode's
+   * double-effect invocation in development.
+   * Bounded to 200 entries to keep memory constant.
+   */
+  const processedMsgIds = useRef<Set<string>>(new Set());
 
   const { token } = useAuthStore();
   const {
@@ -64,13 +85,26 @@ export function useWebSocket(inviteCode: string | null) {
       }
 
       switch (msg.type) {
-        case 'TABLE_STATE_UPDATE':
+        case 'TABLE_STATE_UPDATE': {
+          // ── Community-card staggered audio ─────────────────────────────────
+          // Compare the incoming board length against the current snapshot to
+          // determine whether this update is a Flop (3 cards), Turn (1), or
+          // River (1) and stagger the deal sounds accordingly.
+          const prevBoard = useGameStore.getState().tableState?.board ?? [];
+          const nextBoard = msg.state?.board ?? [];
+          const newCardCount = nextBoard.length - prevBoard.length;
+          if (newCardCount > 0) {
+            playStaggered('card_deal', newCardCount);
+          }
+
           setTableState(msg.state);
           break;
+        }
 
         case 'RECEIVE_PRIVATE_CARDS':
           setMyCards(msg.cards);
-          playSound('card_deal');
+          // Stagger one sound per hole card (always 2 for Texas Hold'em)
+          playStaggered('card_deal', msg.cards?.length ?? 2);
           break;
 
         case 'ACTION_REQUIRED':
@@ -188,8 +222,27 @@ export function useWebSocket(inviteCode: string | null) {
         }
 
         case 'CHAT_MESSAGE': {
+          // ── Deduplication guard ─────────────────────────────────────────────
+          // The server echoes CHAT_MESSAGE to every group member including the
+          // sender. On reconnect (or in React Strict Mode dev double-mount) the
+          // same broadcast can arrive on two socket instances simultaneously.
+          // We use a server-assigned `id` field when present, falling back to
+          // a content hash so every message is processed at most once.
+          const serverId: string | undefined = (msg as any).id;
+          const dedupeKey = serverId ?? `${msg.username}:${msg.message}`;
+
+          if (processedMsgIds.current.has(dedupeKey)) {
+            break; // already rendered — silently drop
+          }
+          // Bound the Set to prevent unbounded memory growth
+          if (processedMsgIds.current.size >= 200) {
+            const firstKey = processedMsgIds.current.values().next().value;
+            processedMsgIds.current.delete(firstKey);
+          }
+          processedMsgIds.current.add(dedupeKey);
+
           const chatMsg: ChatMessage = {
-            id: makeChatId(),
+            id: serverId ?? makeChatId(),
             username: msg.username,
             message: msg.message,
             timestamp: new Date().toISOString(),
@@ -247,7 +300,8 @@ export function useWebSocket(inviteCode: string | null) {
    */
   const sendChat = useCallback(
     (message: string) => {
-      send({ type: 'SEND_CHAT_MESSAGE', message: message.trim() });
+      // Consumer router maps 'CHAT_MESSAGE' → handle_chat (NOT 'SEND_CHAT_MESSAGE')
+      send({ type: 'CHAT_MESSAGE', message: message.trim() });
     },
     [send]
   );
@@ -260,11 +314,19 @@ export function useWebSocket(inviteCode: string | null) {
   }, []);
 
   useEffect(() => {
+    // Capture the socket inside the effect so the cleanup closes THIS instance,
+    // not whatever ws.current points to at cleanup time (which may be a newer
+    // reconnected socket). This is the root cause of the duplicate-listener bug.
     connect();
+    const capturedSocket = ws.current;
     return () => {
-      disconnect();
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      capturedSocket?.close(1000, 'Component unmounted');
+      if (ws.current === capturedSocket) {
+        ws.current = null;
+      }
     };
-  }, [connect, disconnect]);
+  }, [connect]);
 
   return {
     send,

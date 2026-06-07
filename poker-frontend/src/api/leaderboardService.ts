@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '../store/authStore';
 
 const API_BASE =
   import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
@@ -27,13 +28,31 @@ export interface LeaderboardResponse {
   computed_at: string;
 }
 
+// ─── Auth helper ──────────────────────────────────────────────────────────────
+
+/**
+ * Reads the JWT token from the auth store at call-time (not cached on module
+ * load). This guarantees we always use the current token even if the user
+ * logged in or refreshed their token after the module was first imported.
+ *
+ * Returns an axios headers object, or an empty object if no token is present.
+ */
+function getAuthHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().token;
+  if (!token) {
+    console.warn('[leaderboardService] No auth token found — request will be rejected with 401.');
+    return {};
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 /**
  * Fetches the global leaderboard from the backend.
  *
  * Endpoint: GET /api/leaderboard/
- * Auth: Not required (public endpoint).
+ * Auth: Required — Django backend uses IsAuthenticated permission class.
  * Expected response: LeaderboardResponse
  *
  * Falls back gracefully: callers should handle the thrown error.
@@ -42,7 +61,8 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   const response = await axios.get<LeaderboardResponse>(
     `${API_BASE}/api/leaderboard/`,
     {
-      timeout: 8000, // 8-second hard timeout
+      headers: getAuthHeaders(), // dynamically read token at request time
+      timeout: 8000,             // 8-second hard timeout
     }
   );
 

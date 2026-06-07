@@ -44,7 +44,11 @@ export const PokerTable: React.FC<PokerTableProps> = ({
 }) => {
   const myPlayer = tableState.players.find((p) => Number(p.user_id) === Number(myUserId));
   const { lastWinners } = useGameStore();
-  const { equipped } = useEconomyStore();
+  // Precise selector: only re-render when equipped cosmetics change.
+  // Without a selector, Zustand would re-render on ANY store mutation
+  // (e.g. premiumCurrency updates during chip pack purchases), causing
+  // a visual delay as the table remounts unnecessarily.
+  const equipped = useEconomyStore((state) => state.equipped);
   
   const isMyTurn = tableState.current_turn === myPlayer?.seat_index;
   const mySeatIndex = myPlayer ? myPlayer.seat_index : 0;
