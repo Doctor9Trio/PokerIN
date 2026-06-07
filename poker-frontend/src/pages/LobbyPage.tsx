@@ -14,6 +14,7 @@ import {
   Hash,
   Trophy,
   BookOpen,
+  Store,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
@@ -432,6 +433,21 @@ export const LobbyPage: React.FC = () => {
             "
           >
             <BookOpen size={16} />
+          </button>
+
+          {/* Store */}
+          <button
+            id="btn-store"
+            onClick={() => openModal('STOREFRONT')}
+            title="Store"
+            className="
+              p-2 rounded-xl
+              bg-surface-card border border-surface-elevated
+              text-slate-400 hover:text-emerald-400 hover:border-emerald-400/30
+              transition-colors
+            "
+          >
+            <Store size={16} />
           </button>
 
           {/* Settings */}

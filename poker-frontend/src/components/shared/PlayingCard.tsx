@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CardString } from '../../types/poker';
+import { useEconomyStore, COSMETIC_CATALOGUE } from '../../store/economyStore';
 
 interface PlayingCardProps {
   card: CardString;
@@ -27,25 +28,34 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   size = 'md',
 }) => {
   const sz = SIZE_MAP[size];
+  const { equipped } = useEconomyStore();
 
   // Face-down card
   if (card === 'XX' || !card) {
+    const cardBackItem = COSMETIC_CATALOGUE.find((c) => c.id === equipped.cardBack);
+    const bgClass = cardBackItem?.previewClass || 'bg-gradient-to-br from-slate-700 to-slate-900';
+
     return (
       <div
-        className={`relative flex-shrink-0 rounded-lg shadow-lg ${sz.card} ${className}`}
+        className={`relative flex-shrink-0 rounded-lg shadow-lg overflow-hidden ${sz.card} ${bgClass} ${className}`}
         style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
           border: '1px solid rgba(255,255,255,0.1)',
-          backgroundImage: `repeating-linear-gradient(
-            45deg,
-            rgba(255,255,255,0.05) 0px,
-            rgba(255,255,255,0.05) 2px,
-            transparent 2px,
-            transparent 6px
-          )`,
           boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.5)',
         }}
-      />
+      >
+        <div
+          className="absolute inset-0 opacity-40 pointer-events-none"
+          style={{
+            backgroundImage: `repeating-linear-gradient(
+              45deg,
+              rgba(255,255,255,0.05) 0px,
+              rgba(255,255,255,0.05) 2px,
+              transparent 2px,
+              transparent 6px
+            )`,
+          }}
+        />
+      </div>
     );
   }
 

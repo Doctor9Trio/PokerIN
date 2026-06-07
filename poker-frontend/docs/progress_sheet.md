@@ -2,6 +2,34 @@
 
 ---
 
+## Sprint: 2026-06-07_05:37:IST
+
+**Project Phase:** Phase 5 — Virtual Economy & Cosmetics
+**Status:** ✅ COMPLETE — `tsc --noEmit` passed with 0 errors
+
+### Changes Made
+| File | Action | Description |
+|---|---|---|
+| `docs/progress_sheet.md` | MODIFIED | This entry |
+| `src/store/economyStore.ts` | NEW | Zustand + persist store: premiumCurrency, inventory[], equipped {felt, cardBack, avatarFrame}, equipItem(), purchaseItem() |
+| `src/store/uiStore.ts` | MODIFIED | Added `'STOREFRONT'` to ModalName union |
+| `src/components/ui/StorefrontModal.tsx` | NEW | Tabbed storefront (Chips / Felts / Card Backs); CSS Grid item cards with Buy+Equip states; hover scale effects |
+| `src/components/ui/GlobalModalContainer.tsx` | MODIFIED | Added `STOREFRONT` case + import |
+| `src/components/table/PokerTable.tsx` | MODIFIED | Reads `economyStore.equipped.felt` → maps to felt gradient; outer ring also tinted |
+| `src/components/shared/PlayingCard.tsx` | MODIFIED | Reads `economyStore.equipped.cardBack` → renders themed card-back pattern |
+| `src/pages/LobbyPage.tsx` | MODIFIED | Added 🛍 Store icon button to nav bar |
+
+### Changes Needed / Next Steps — Phase 5.1
+- [ ] Backend ledger: `POST /api/economy/purchase/` + authenticated payment verification
+- [ ] Stripe / Razorpay chip top-up flow
+- [ ] Server-side equipped cosmetics persistence (save to user profile)
+- [ ] Avatar frame ring integration in `PlayerSeat.tsx`
+- [ ] Animated card-back unlock reveal effect
+
+---
+
+---
+
 ## Sprint: 2026-06-07_05:27:IST
 
 **Project Phase:** Phase 4.1 — Live Data Integration

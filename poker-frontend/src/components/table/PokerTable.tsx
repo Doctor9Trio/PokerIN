@@ -5,6 +5,7 @@ import { CommunityCards } from './CommunityCards';
 import { ChipStack } from '../shared/ChipStack';
 import { ActionConsole } from '../controls/ActionConsole';
 import { useGameStore } from '../../store/gameStore';
+import { useEconomyStore, COSMETIC_CATALOGUE } from '../../store/economyStore';
 import type { TableState, PlayerAction } from '../../types/poker';
 
 interface PokerTableProps {
@@ -43,8 +44,25 @@ export const PokerTable: React.FC<PokerTableProps> = ({
 }) => {
   const myPlayer = tableState.players.find((p) => Number(p.user_id) === Number(myUserId));
   const { lastWinners } = useGameStore();
+  const { equipped } = useEconomyStore();
+  
   const isMyTurn = tableState.current_turn === myPlayer?.seat_index;
   const mySeatIndex = myPlayer ? myPlayer.seat_index : 0;
+
+  const feltItem = COSMETIC_CATALOGUE.find((c) => c.id === equipped.felt);
+
+  const getFeltRingStyle = (feltId: string) => {
+    switch (feltId) {
+      case 'felt_midnight': return { bg: 'rgba(10,15,30,0.6)', ring1: '#0a0f1e', ring2: '#0f172a' };
+      case 'felt_ruby':     return { bg: 'rgba(30,10,10,0.6)', ring1: '#1e0a0a', ring2: '#2a0f0f' };
+      case 'felt_obsidian': return { bg: 'rgba(15,10,25,0.6)', ring1: '#0f0a19', ring2: '#1a0f2e' };
+      case 'felt_emerald':  return { bg: 'rgba(5,25,15,0.6)',  ring1: '#05190f', ring2: '#0f2a1e' };
+      case 'felt_gold':     return { bg: 'rgba(30,20,5,0.6)',  ring1: '#1e1405', ring2: '#2a1a05' };
+      case 'felt_classic':
+      default:              return { bg: 'rgba(10,26,16,0.6)', ring1: '#0a1a10', ring2: '#1a3020' };
+    }
+  };
+  const ringStyle = getFeltRingStyle(equipped.felt);
 
   // Helper to get normalized position so the local player is always at the bottom center (index 0)
   const getNormalizedSeatPosition = (actualSeatIndex: number) => {
@@ -67,14 +85,14 @@ export const PokerTable: React.FC<PokerTableProps> = ({
           width: 'min(90vw, 900px)',
           height: 'min(80vh, 520px)',
           borderRadius: '50%',
-          background: 'rgba(10,26,16,0.6)',
-          boxShadow: '0 0 0 8px #0a1a10, 0 0 0 16px #1a3020, 0 20px 60px rgba(0,0,0,0.8)',
+          background: ringStyle.bg,
+          boxShadow: `0 0 0 8px ${ringStyle.ring1}, 0 0 0 16px ${ringStyle.ring2}, 0 20px 60px rgba(0,0,0,0.8)`,
           padding: 12,
         }}
       >
         {/* Inner felt table */}
         <div
-          className="poker-table w-full h-full rounded-full"
+          className={`poker-table w-full h-full rounded-full ${feltItem?.previewClass || ''}`}
           style={{ borderRadius: '50%', position: 'relative' }}
         >
           {/* Center content: pot + community cards */}

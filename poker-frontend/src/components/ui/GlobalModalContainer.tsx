@@ -8,6 +8,7 @@ import { PlayerProfileCard } from './PlayerProfileCard';
 import { SessionSummaryModal } from './SessionSummaryModal';
 import { LeaderboardModal } from './LeaderboardModal';
 import { TutorialModal } from './TutorialModal';
+import { StorefrontModal } from './StorefrontModal';
 
 // ─── Backdrop ─────────────────────────────────────────────────────────────────
 
@@ -322,6 +323,8 @@ export const GlobalModalContainer: React.FC = () => {
         return <LeaderboardModal key="LEADERBOARD" />;
       case 'TUTORIAL':
         return <TutorialModal key="TUTORIAL" />;
+      case 'STOREFRONT':
+        return <StorefrontModal key="STOREFRONT" />;
       default:
         return null;
     }

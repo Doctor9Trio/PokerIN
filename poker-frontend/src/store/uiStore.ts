@@ -11,6 +11,7 @@ export type ModalName =
   | 'SESSION_SUMMARY'
   | 'LEADERBOARD'
   | 'TUTORIAL'
+  | 'STOREFRONT'
   | null;
 
 export interface UISettings {
