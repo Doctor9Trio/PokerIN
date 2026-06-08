@@ -108,18 +108,21 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
 
   const cards = isCurrentUser && myCards ? myCards : player.hole_cards;
 
+  const isBottomSeat = style?.top && parseFloat(style.top as string) >= 50;
+
   return (
     <motion.div
-      className="player-seat absolute z-10"
-      style={style}
+      className="absolute z-10 flex items-center justify-center"
+      style={{ ...style, width: '64px', height: '64px', transform: 'translate(-50%, -50%)' }}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
     >
-      <div className="relative flex flex-col items-center">
+      {/* 1. Avatar Core Area (strictly 64x64) */}
+      <div className="relative w-16 h-16 shrink-0 z-20">
         {/* Timer ring behind avatar */}
         {isActiveTurn && (
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
             <TimerRing
               totalSeconds={turnTimeoutSeconds}
               remainingSeconds={remainingTime}
@@ -129,114 +132,123 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
           </div>
         )}
 
-        {/* Avatar Area */}
-        <div className="relative z-10">
-          <StatusBadge player={player} gameStage={gameStage} />
-          
-          {/* Clickable avatar — opens PlayerProfileCard modal */}
-          <button
-            onClick={handleAvatarClick}
-            title={`View ${player.username}'s profile`}
-            aria-label={`Open profile for ${player.username}`}
-            className="group relative focus:outline-none"
+        <StatusBadge player={player} gameStage={gameStage} />
+        
+        {/* Clickable avatar — opens PlayerProfileCard modal */}
+        <button
+          onClick={handleAvatarClick}
+          title={`View ${player.username}'s profile`}
+          aria-label={`Open profile for ${player.username}`}
+          className="group relative focus:outline-none w-full h-full"
+        >
+          {/* Hover ring — appears on hover, never disrupts timer ring (z-0) */}
+          <span
+            className="
+              absolute inset-0 rounded-full scale-110
+              ring-2 ring-white/0 group-hover:ring-white/20
+              transition-all duration-200 pointer-events-none
+            "
+          />
+          <div
+            className={`player-avatar w-full h-full rounded-full ${isActiveTurn ? 'active animate-pulse' : ''}`}
+            style={{
+              opacity: player.is_folded ? 0.5 : 1,
+              background: isCurrentUser ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #334155, #1e293b)',
+              border: isCurrentUser
+                ? '3px solid rgba(212,175,55,0.8)'
+                : '3px solid rgba(255,255,255,0.1)',
+              boxShadow: isActiveTurn ? '0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 10px rgba(0, 255, 136, 0.2)' : 'none',
+              overflow: 'hidden',
+              transition: 'all 0.3s ease',
+            }}
           >
-            {/* Hover ring — appears on hover, never disrupts timer ring (z-0) */}
-            <span
-              className="
-                absolute inset-0 rounded-full scale-110
-                ring-2 ring-white/0 group-hover:ring-white/20
-                transition-all duration-200 pointer-events-none
-              "
-            />
-            <div
-              className={`player-avatar ${isActiveTurn ? 'active animate-pulse' : ''}`}
-              style={{
-                opacity: player.is_folded ? 0.5 : 1,
-                background: isCurrentUser ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #334155, #1e293b)',
-                border: isCurrentUser
-                  ? '3px solid rgba(212,175,55,0.8)'
-                  : '3px solid rgba(255,255,255,0.1)',
-                boxShadow: isActiveTurn ? '0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 10px rgba(0, 255, 136, 0.2)' : 'none',
-                overflow: 'hidden',
-                transition: 'all 0.3s ease',
-              }}
-            >
-              {player.avatar_url ? (
-                <img
-                  src={player.avatar_url.startsWith('http') ? player.avatar_url : `${API_BASE}${player.avatar_url}`}
-                  alt={player.username}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                player.username.charAt(0).toUpperCase()
-              )}
-            </div>
-          </button>
+            {player.avatar_url ? (
+              <img
+                src={player.avatar_url.startsWith('http') ? player.avatar_url : `${API_BASE}${player.avatar_url}`}
+                alt={player.username}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span className="flex items-center justify-center w-full h-full text-xl font-bold">
+                {player.username.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+        </button>
 
-          {/* Winner Crown */}
-          {isWinner && (
+        {/* Winner Crown */}
+        {isWinner && (
+          <motion.div 
+            initial={{ scale: 0, y: -20, opacity: 0 }}
+            animate={{ scale: 1.2, y: 0, opacity: 1 }}
+            transition={{ type: 'spring', bounce: 0.6, delay: 0.8 }}
+            className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl drop-shadow-2xl z-40"
+            style={{ filter: 'drop-shadow(0 0 15px rgba(255, 215, 0, 1))' }}
+          >
+            👑
+          </motion.div>
+        )}
+
+        {/* Winning Amount Popup */}
+        <AnimatePresence>
+          {isWinner && gameStage === 'SHOWDOWN' && (
             <motion.div 
-              initial={{ scale: 0, y: -20, opacity: 0 }}
-              animate={{ scale: 1.2, y: 0, opacity: 1 }}
-              transition={{ type: 'spring', bounce: 0.6, delay: 0.8 }}
-              className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl drop-shadow-2xl z-40"
-              style={{ filter: 'drop-shadow(0 0 15px rgba(255, 215, 0, 1))' }}
+              initial={{ opacity: 0, y: -30, scale: 0.9 }}
+              animate={{ opacity: [0, 1, 1, 0], y: -90, scale: 1.3 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 3.5, ease: "easeOut", delay: 1.2, times: [0, 0.15, 0.85, 1] }}
+              className="absolute top-0 left-1/2 -translate-x-1/2 font-bold text-yellow-400 whitespace-nowrap z-50 text-2xl tracking-wide"
+              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,1)' }}
             >
-              👑
+              + ₹{winnerInfo.amount_won}
             </motion.div>
           )}
+        </AnimatePresence>
 
-          {/* Winning Amount Popup */}
-          <AnimatePresence>
-            {isWinner && gameStage === 'SHOWDOWN' && (
-              <motion.div 
-                initial={{ opacity: 0, y: -30, scale: 0.9 }}
-                animate={{ opacity: [0, 1, 1, 0], y: -60, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 3.5, ease: "easeOut", delay: 1.2, times: [0, 0.15, 0.85, 1] }}
-                className="absolute top-0 left-1/2 -translate-x-1/2 font-bold text-yellow-400 whitespace-nowrap z-50 text-2xl tracking-wide"
-                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,1)' }}
-              >
-                + ₹{winnerInfo.amount_won}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Dealer button */}
-          {isDealer && (
-            <div
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black z-20"
-              style={{
-                background: 'linear-gradient(135deg, #fde047, #d4af37)',
-                color: '#0f172a',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.6)',
-                border: '1px solid #713f12',
-              }}
-            >
-              D
-            </div>
-          )}
-        </div>
+        {/* Dealer button */}
+        {isDealer && (
+          <div
+            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black z-20"
+            style={{
+              background: 'linear-gradient(135deg, #fde047, #d4af37)',
+              color: '#0f172a',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.6)',
+              border: '1px solid #713f12',
+            }}
+          >
+            D
+          </div>
+        )}
 
         {/* Username */}
-        <span
-          className="text-xs font-bold max-w-[80px] truncate mt-1.5 z-10 px-2 py-0.5 rounded-full"
-          style={{ 
-            color: isCurrentUser ? '#fde047' : '#e2e8f0',
-            background: 'rgba(15,23,42,0.7)',
-            backdropFilter: 'blur(4px)',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}
-        >
-          {player.username}
-        </span>
+        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap z-30">
+          <span
+            className="text-[10px] font-bold max-w-[80px] truncate px-2 py-0.5 rounded-full inline-block"
+            style={{ 
+              color: isCurrentUser ? '#fde047' : '#e2e8f0',
+              background: 'rgba(15,23,42,0.85)',
+              backdropFilter: 'blur(4px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
+            }}
+          >
+            {player.username}
+          </span>
+        </div>
+      </div>
 
-        {/* Hole cards (Nicely fanned out, placed below username) */}
+      {/* 2. Cards & Stack Flow (Absolutely positioned outside the 64x64 core) */}
+      <div 
+        className={`absolute flex flex-col items-center gap-1.5 w-[140px] pointer-events-none ${
+          isBottomSeat ? 'bottom-full mb-4 flex-col-reverse' : 'top-full mt-4'
+        }`}
+      >
+        {/* Hole cards (Nicely fanned out) */}
         <AnimatePresence>
           {cards.length > 0 && !player.is_folded && (
             <motion.div
-              className="flex mt-1 z-20 relative"
-              initial={{ y: -20, opacity: 0 }}
+              className="flex z-20 relative pointer-events-auto"
+              initial={{ y: isBottomSeat ? 20 : -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
@@ -245,10 +257,10 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
                 return (
                   <motion.div 
                     key={`${card}-${i}`} 
-                    className="transition-transform hover:-translate-y-2"
+                    className={`transition-transform hover:${isBottomSeat ? 'translate-y-2' : '-translate-y-2'}`}
                     animate={{
                       scale: isWinningCard ? 1.05 : 1,
-                      y: isWinningCard ? -5 : 0
+                      y: isWinningCard ? (isBottomSeat ? 5 : -5) : 0
                     }}
                     transition={{ type: 'spring', stiffness: 300 }}
                     style={{ 
@@ -269,7 +281,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
         </AnimatePresence>
 
         {/* Stack and current bet */}
-        <div className="flex flex-col items-center gap-1.5 mt-2 z-10">
+        <div className={`flex flex-col items-center gap-1.5 z-10 pointer-events-auto ${isBottomSeat ? 'flex-col-reverse' : ''}`}>
           <span 
             className="text-[11px] font-black px-2.5 py-0.5 rounded-full" 
             style={{ 

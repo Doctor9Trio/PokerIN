@@ -27,11 +27,11 @@ interface PokerTableProps {
 // Expressed as percentages of the table dimensions
 const SEAT_POSITIONS_6: Array<{ top: string; left: string }> = [
   { top: '85%',  left: '50%'  }, // Seat 0 — bottom center (local player)
-  { top: '72%',  left: '15%'  }, // Seat 1 — bottom left
-  { top: '30%',  left: '8%'   }, // Seat 2 — left
-  { top: '8%',   left: '30%'  }, // Seat 3 — top left
-  { top: '8%',   left: '70%'  }, // Seat 4 — top right
-  { top: '30%',  left: '92%'  }, // Seat 5 — right
+  { top: '70%',  left: '15%'  }, // Seat 1 — bottom left
+  { top: '25%',  left: '15%'  }, // Seat 2 — top left
+  { top: '10%',  left: '50%'  }, // Seat 3 — top center
+  { top: '25%',  left: '85%'  }, // Seat 4 — top right
+  { top: '70%',  left: '85%'  }, // Seat 5 — bottom right
 ];
 
 export const PokerTable: React.FC<PokerTableProps> = ({
