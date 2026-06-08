@@ -8,6 +8,8 @@ import { useUIStore } from '../../store/uiStore';
 import type { PlayerProfileData } from '../ui/PlayerProfileCard';
 import type { PlayerState } from '../../types/poker';
 
+const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+
 interface PlayerSeatProps {
   player: PlayerState;
   isCurrentUser: boolean;
@@ -147,17 +149,27 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
               "
             />
             <div
-              className={`player-avatar ${isActiveTurn ? 'active' : ''}`}
+              className={`player-avatar ${isActiveTurn ? 'active animate-pulse' : ''}`}
               style={{
                 opacity: player.is_folded ? 0.5 : 1,
                 background: isCurrentUser ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #334155, #1e293b)',
                 border: isCurrentUser
                   ? '3px solid rgba(212,175,55,0.8)'
                   : '3px solid rgba(255,255,255,0.1)',
-                boxShadow: isActiveTurn ? '0 0 15px rgba(0,255,136,0.2)' : 'none',
+                boxShadow: isActiveTurn ? '0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 10px rgba(0, 255, 136, 0.2)' : 'none',
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
               }}
             >
-              {player.username.charAt(0).toUpperCase()}
+              {player.avatar_url ? (
+                <img
+                  src={player.avatar_url.startsWith('http') ? player.avatar_url : `${API_BASE}${player.avatar_url}`}
+                  alt={player.username}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                player.username.charAt(0).toUpperCase()
+              )}
             </div>
           </button>
 
@@ -178,19 +190,14 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
           <AnimatePresence>
             {isWinner && gameStage === 'SHOWDOWN' && (
               <motion.div 
-                initial={{ opacity: 0, y: 20, scale: 0.5 }}
-                animate={{ opacity: [0, 1, 1, 0], y: -60, scale: 1.3 }}
+                initial={{ opacity: 0, y: -30, scale: 0.9 }}
+                animate={{ opacity: [0, 1, 1, 0], y: -60, scale: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 2.5, ease: "easeOut", delay: 1.2, times: [0, 0.2, 0.8, 1] }}
-                className="absolute top-0 left-1/2 -translate-x-1/2 font-black text-green-400 drop-shadow-2xl whitespace-nowrap z-50 text-xl flex flex-col items-center"
-                style={{ textShadow: '0 0 10px #22c55e, 0 0 20px #16a34a', WebkitTextStroke: '1px #064e3b' }}
+                transition={{ duration: 3.5, ease: "easeOut", delay: 1.2, times: [0, 0.15, 0.85, 1] }}
+                className="absolute top-0 left-1/2 -translate-x-1/2 font-bold text-yellow-400 whitespace-nowrap z-50 text-2xl tracking-wide"
+                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,1)' }}
               >
-                <span>+ ₹{winnerInfo.amount_won}</span>
-                {winnerInfo.hand_rank && (
-                  <span className="text-[12px] text-yellow-300 mt-1" style={{ textShadow: '0 0 8px #fde047', WebkitTextStroke: '0px' }}>
-                    {winnerInfo.hand_rank.toUpperCase()}
-                  </span>
-                )}
+                + ₹{winnerInfo.amount_won}
               </motion.div>
             )}
           </AnimatePresence>
@@ -233,19 +240,30 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
               animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
-              {cards.map((card, i) => (
-                <div 
-                  key={`${card}-${i}`} 
-                  className="transition-transform hover:-translate-y-2"
-                  style={{ 
-                    marginLeft: i > 0 ? -16 : 0, 
-                    transform: `rotate(${i === 0 ? -6 : 6}deg) translateY(${i === 0 ? 2 : 0}px)`,
-                    zIndex: i
-                  }}
-                >
-                  <PlayingCard card={card} size="sm" />
-                </div>
-              ))}
+              {cards.map((card, i) => {
+                const isWinningCard = gameStage === 'SHOWDOWN' && winnerInfo?.winning_cards?.includes(card);
+                return (
+                  <motion.div 
+                    key={`${card}-${i}`} 
+                    className="transition-transform hover:-translate-y-2"
+                    animate={{
+                      scale: isWinningCard ? 1.05 : 1,
+                      y: isWinningCard ? -5 : 0
+                    }}
+                    transition={{ type: 'spring', stiffness: 300 }}
+                    style={{ 
+                      marginLeft: i > 0 ? -16 : 0, 
+                      transform: `rotate(${i === 0 ? -6 : 6}deg) translateY(${i === 0 ? 2 : 0}px)`,
+                      zIndex: isWinningCard ? 30 : i,
+                      opacity: gameStage === 'SHOWDOWN' ? (isWinningCard ? 1 : 0.4) : 1,
+                      boxShadow: isWinningCard ? '0 0 15px rgba(212,175,55,0.4), 0 0 0 2px rgba(212,175,55,0.8)' : 'none',
+                      borderRadius: '4px' // Ensure shadow follows the card shape
+                    }}
+                  >
+                    <PlayingCard card={card} size="sm" />
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>

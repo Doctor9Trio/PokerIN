@@ -8,13 +8,12 @@ import {
   DoorOpen,
   Settings,
   Wallet,
-  Users,
-  Zap,
+  Trophy,
+  User,
   ChevronRight,
   Hash,
-  Trophy,
-  BookOpen,
-  Store,
+  Zap,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
@@ -39,20 +38,11 @@ interface FieldProps {
 }
 
 const Field: React.FC<FieldProps> = ({
-  id,
-  label,
-  type = 'text',
-  value,
-  placeholder,
-  onChange,
-  maxLength,
-  min,
-  required = true,
-  uppercase = false,
-  className = '',
+  id, label, type = 'text', value, placeholder, onChange,
+  maxLength, min, required = true, uppercase = false, className = '',
 }) => (
   <div className={className}>
-    <label htmlFor={id} className="block text-xs font-semibold text-slate-400 mb-1.5">
+    <label htmlFor={id} className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
       {label}
     </label>
     <input
@@ -63,15 +53,13 @@ const Field: React.FC<FieldProps> = ({
       maxLength={maxLength}
       min={min}
       required={required}
-      onChange={(e) =>
-        onChange(uppercase ? e.target.value.toUpperCase() : e.target.value)
-      }
+      onChange={(e) => onChange(uppercase ? e.target.value.toUpperCase() : e.target.value)}
       className="
         w-full rounded-xl px-4 py-2.5 text-sm outline-none
-        bg-surface-card border border-surface-elevated
-        text-slate-200 placeholder-slate-600
-        focus:border-gold/50 focus:ring-2 focus:ring-gold/10
-        transition-all duration-150
+        bg-white/4 border border-white/8
+        text-slate-200 placeholder-slate-700
+        focus:border-gold/50 focus:ring-2 focus:ring-gold/10 focus:bg-white/6
+        transition-all duration-200
       "
     />
   </div>
@@ -98,30 +86,76 @@ const CreateTableForm: React.FC<CreateFormProps> = ({ onSuccess, onError, token 
   const [form, setForm] = useState<CreateFormState>({
     name: '',
     small_blind: '50',
+    // big_blind = 2 × small_blind = 100
     big_blind: '100',
+    // min_buy_in must be ≥ 20 × big_blind = 2000
     min_buy_in: '2000',
-    max_buy_in: '20000',
+    max_buy_in: '10000',
     max_players: '6',
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const f = (key: keyof CreateFormState) => (v: string) =>
-    setForm((prev) => ({ ...prev, [key]: v }));
+  // When small blind changes → auto-set big blind and re-derive min buy-in
+  const handleSmallBlind = (v: string) => {
+    const sb = parseFloat(v) || 0;
+    const bb = sb * 2;
+    const minBuyin = bb * 20;
+    setForm((p) => ({
+      ...p,
+      small_blind: v,
+      big_blind: String(bb || ''),
+      min_buy_in: String(minBuyin || ''),
+      max_buy_in: String(Math.max(parseFloat(p.max_buy_in) || 0, minBuyin)),
+    }));
+  };
+
+  // When big blind changes directly → re-derive min buy-in (must be ≥ 20×BB)
+  const handleBigBlind = (v: string) => {
+    const bb = parseFloat(v) || 0;
+    const minBuyin = bb * 20;
+    setForm((p) => ({
+      ...p,
+      big_blind: v,
+      min_buy_in: String(minBuyin || ''),
+      max_buy_in: String(Math.max(parseFloat(p.max_buy_in) || 0, minBuyin)),
+    }));
+  };
+
+  // When min buy-in changes → ensure max ≥ min
+  const handleMinBuyIn = (v: string) => {
+    const min = parseFloat(v) || 0;
+    setForm((p) => ({
+      ...p,
+      min_buy_in: v,
+      max_buy_in: String(Math.max(parseFloat(p.max_buy_in) || 0, min)),
+    }));
+  };
+
+  const set = (k: keyof CreateFormState) => (v: string) =>
+    setForm((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await axios.post(`${API}/api/tables/create/`, form, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.post(
+        `${API}/api/tables/create/`,
+        {
+          name: form.name,
+          small_blind: parseFloat(form.small_blind),
+          big_blind: parseFloat(form.big_blind),
+          min_buy_in: parseFloat(form.min_buy_in),
+          max_buy_in: parseFloat(form.max_buy_in),
+          max_players: parseInt(form.max_players, 10),
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       onSuccess(res.data.invite_code, form.min_buy_in);
     } catch (err: any) {
-      const data = err.response?.data;
       onError(
-        typeof data === 'object'
-          ? Object.values(data).flat().join(' ')
-          : 'Failed to create table.'
+        err.response?.data?.detail ||
+        err.response?.data?.non_field_errors?.[0] ||
+        'Failed to create table.',
       );
     } finally {
       setSubmitting(false);
@@ -129,90 +163,52 @@ const CreateTableForm: React.FC<CreateFormProps> = ({ onSuccess, onError, token 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
       <Field
-        id="input-name"
+        id="create-name"
         label="Table Name"
         value={form.name}
-        placeholder="My Poker Night"
-        onChange={f('name')}
+        placeholder="e.g. High Stakes VIP"
+        onChange={set('name')}
+        maxLength={40}
+        required
       />
-
       <div className="grid grid-cols-2 gap-3">
-        <Field
-          id="input-small-blind"
-          label="Small Blind (₹)"
-          type="number"
-          value={form.small_blind}
-          placeholder="50"
-          onChange={f('small_blind')}
-        />
-        <Field
-          id="input-big-blind"
-          label="Big Blind (₹)"
-          type="number"
-          value={form.big_blind}
-          placeholder="100"
-          onChange={f('big_blind')}
-        />
-        <Field
-          id="input-min-buy-in"
-          label="Min Buy-In (₹)"
-          type="number"
-          value={form.min_buy_in}
-          placeholder="2000"
-          onChange={f('min_buy_in')}
-        />
-        <Field
-          id="input-max-buy-in"
-          label="Max Buy-In (₹)"
-          type="number"
-          value={form.max_buy_in}
-          placeholder="20000"
-          onChange={f('max_buy_in')}
-        />
+        <Field id="create-sb" label="Small Blind (₹)" type="number" value={form.small_blind} min="1" onChange={handleSmallBlind} />
+        <Field id="create-bb" label="Big Blind (₹)"   type="number" value={form.big_blind}   min="1" onChange={handleBigBlind} />
       </div>
-
-      {/* Max players selector */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-          Max Players
-        </label>
-        <div className="flex gap-2">
-          {['2', '4', '6'].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setForm((p) => ({ ...p, max_players: n }))}
-              className={`
-                flex-1 py-2 rounded-xl text-sm font-bold border transition-all duration-150
-                ${
-                  form.max_players === n
-                    ? 'bg-gold/15 border-gold/40 text-gold'
-                    : 'bg-surface-card border-surface-elevated text-slate-500 hover:border-surface-elevated/80 hover:text-slate-300'
-                }
-              `}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field id="create-min" label="Min Buy-in (₹)" type="number" value={form.min_buy_in} min="1" onChange={handleMinBuyIn} />
+        <Field id="create-max" label="Max Buy-in (₹)" type="number" value={form.max_buy_in} min="1" onChange={set('max_buy_in')} />
       </div>
+      <Field id="create-seats" label="Max Players" type="number" value={form.max_players} min="2" onChange={set('max_players')} />
 
       <button
-        id="btn-create"
         type="submit"
         disabled={submitting}
         className="
-          w-full py-3 mt-1 rounded-xl font-bold text-sm
-          bg-emerald-600 hover:bg-emerald-500
+          relative mt-1 w-full py-3 rounded-xl
+          font-display font-bold text-sm tracking-wide overflow-hidden
           disabled:opacity-50 disabled:cursor-not-allowed
-          text-white transition-colors duration-150
+          transition-all duration-150
           flex items-center justify-center gap-2
+          text-surface
         "
+        style={{
+          background: 'linear-gradient(135deg, #d4af37, #f0cc5a)',
+          boxShadow: '0 0 20px rgba(212,175,55,0.25)',
+        }}
       >
-        <Plus size={16} />
-        {submitting ? 'Creating…' : 'Create Table'}
+        {!submitting && (
+          <motion.span
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
+            initial={{ x: '-100%' }}
+            animate={{ x: '200%' }}
+            transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 1.2 }}
+          />
+        )}
+        <Plus size={15} className="relative" />
+        <span className="relative">{submitting ? 'Creating…' : 'Create Table'}</span>
       </button>
     </form>
   );
@@ -221,233 +217,223 @@ const CreateTableForm: React.FC<CreateFormProps> = ({ onSuccess, onError, token 
 // ─── Join Table Form ──────────────────────────────────────────────────────────
 
 interface JoinFormProps {
+  token: string;
   onSuccess: (code: string, buyIn: string) => void;
   onError: (msg: string) => void;
-  token: string;
 }
 
-const JoinTableForm: React.FC<JoinFormProps> = ({ onSuccess, onError, token }) => {
-  const [joinCode, setJoinCode] = useState('');
-  const [buyIn, setBuyIn] = useState('');
+const JoinTableForm: React.FC<JoinFormProps> = ({ token, onSuccess, onError }) => {
+  const [code, setCode] = useState('');
+  const [buyIn, setBuyIn] = useState('1000');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!code.trim()) { onError('Enter a table code first.'); return; }
     setSubmitting(true);
     try {
       await axios.post(
         `${API}/api/tables/join/`,
-        { invite_code: joinCode.toUpperCase(), buy_in_amount: parseFloat(buyIn) },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { invite_code: code.toUpperCase(), buy_in_amount: parseFloat(buyIn) },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      onSuccess(joinCode.toUpperCase(), buyIn);
+      onSuccess(code.toUpperCase(), buyIn);
     } catch (err: any) {
-      onError(err.response?.data?.error || 'Failed to join table.');
+      onError(
+        err.response?.data?.detail ||
+        err.response?.data?.error ||
+        'Could not join table.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* Code input */}
-      <div>
-        <label htmlFor="input-invite-code" className="block text-xs font-semibold text-slate-400 mb-1.5">
-          Invite Code
-        </label>
-        <div className="relative">
-          <Hash
-            size={14}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
-          />
-          <input
-            id="input-invite-code"
-            type="text"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="AX7K3P"
-            maxLength={6}
-            required
-            className="
-              w-full rounded-xl pl-9 pr-4 py-3
-              text-center text-2xl font-black tracking-[0.3em]
-              bg-surface-card border border-surface-elevated
-              text-gold placeholder-slate-700
-              focus:border-gold/50 focus:ring-2 focus:ring-gold/10
-              outline-none transition-all duration-150
-            "
-          />
-        </div>
-      </div>
-
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
       <Field
-        id="input-buy-in"
-        label="Buy-In Amount (₹)"
+        id="join-code"
+        label="Table Code"
+        value={code}
+        placeholder="e.g. XKQJ7"
+        onChange={setCode}
+        uppercase
+        maxLength={8}
+      />
+      <Field
+        id="join-buyin"
+        label="Buy-in Amount (₹)"
         type="number"
         value={buyIn}
-        placeholder="e.g. 5000"
-        min="100"
+        min="1"
         onChange={setBuyIn}
       />
-
       <button
-        id="btn-join"
         type="submit"
-        disabled={submitting || joinCode.length < 4}
+        disabled={submitting}
         className="
-          w-full py-3 rounded-xl font-bold text-sm
-          bg-gold hover:bg-gold-light
+          mt-1 w-full py-3 rounded-xl
+          font-display font-bold text-sm tracking-wide
+          border border-white/10 bg-white/5
+          text-slate-200 hover:bg-white/8 hover:border-white/20
           disabled:opacity-50 disabled:cursor-not-allowed
-          text-surface transition-colors duration-150
+          transition-all duration-150
           flex items-center justify-center gap-2
         "
       >
-        <DoorOpen size={16} />
+        <DoorOpen size={15} />
         {submitting ? 'Joining…' : 'Join Table'}
-        <ChevronRight size={14} className="opacity-60" />
+        <ChevronRight size={13} className="opacity-50" />
       </button>
     </form>
   );
 };
 
-// ─── Main Lobby Dashboard ─────────────────────────────────────────────────────
+// ─── Quick Stat Card ──────────────────────────────────────────────────────────
+
+interface QuickStatProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  accent: string;
+  delay: number;
+}
+
+const QuickStat: React.FC<QuickStatProps> = ({ icon, label, value, accent, delay }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.35 }}
+    className="flex flex-col gap-1 px-4 py-3.5 rounded-2xl border border-white/6 bg-white/3 backdrop-blur-sm"
+  >
+    <span className={`${accent} opacity-70`}>{icon}</span>
+    <span className={`font-display font-black text-lg leading-tight ${accent}`}>{value}</span>
+    <span className="text-[10px] text-slate-600 font-medium uppercase tracking-wider">{label}</span>
+  </motion.div>
+);
+
+// ─── Decorative floating suit ─────────────────────────────────────────────────
+
+const FloatSuit: React.FC<{ suit: string; style: React.CSSProperties; duration?: number; delay?: number }> = ({
+  suit, style, duration = 8, delay = 0,
+}) => (
+  <motion.span
+    className="absolute select-none pointer-events-none font-black"
+    style={{ fontSize: '6rem', opacity: 0.025, ...style }}
+    animate={{ y: [-8, 8, -8], rotate: [-3, 3, -3] }}
+    transition={{ duration, repeat: Infinity, delay, ease: 'easeInOut' }}
+  >
+    {suit}
+  </motion.span>
+);
+
+// ─── Main Lobby ───────────────────────────────────────────────────────────────
 
 type Tab = 'join' | 'create';
 
 export const LobbyPage: React.FC = () => {
-  const { token, username, balance, setBalance, logout } = useAuthStore();
+  const { token, username, balance, avatarUrl, setBalance, logout } = useAuthStore();
   const { openModal, setLoading } = useUIStore();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>('join');
   const [error, setError] = useState('');
 
-  // ── Fetch balance on mount ─────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
     axios
-      .get(`${API}/api/auth/profile/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      .get(`${API}/api/auth/profile/`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => setBalance(r.data.wallet.balance))
       .catch(() => {});
   }, [token, setBalance]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleCreateSuccess = (code: string, minBuyIn: string) => {
     setLoading(true, 'Setting up your table…');
-    setTimeout(() => {
-      setLoading(false);
-      navigate(`/table/${code}?buyin=${minBuyIn}&create=1`);
-    }, 800);
+    setTimeout(() => { setLoading(false); navigate(`/table/${code}?buyin=${minBuyIn}&create=1`); }, 800);
   };
 
   const handleJoinSuccess = (code: string, buyIn: string) => {
     setLoading(true, 'Joining table…');
-    setTimeout(() => {
-      setLoading(false);
-      navigate(`/table/${code}?buyin=${buyIn}`);
-    }, 600);
+    setTimeout(() => { setLoading(false); navigate(`/table/${code}?buyin=${buyIn}`); }, 600);
   };
 
-  const handleError = (msg: string) => setError(msg);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  // ── Stats bar items ────────────────────────────────────────────────────────
-  const stats = [
-    {
-      icon: <Wallet size={15} />,
-      label: 'Balance',
-      value: balance
-        ? `₹${parseFloat(balance).toLocaleString('en-IN')}`
-        : '—',
-      accent: 'text-gold',
-    },
-    {
-      icon: <Users size={15} />,
-      label: 'Tables Active',
-      value: '–',
-      accent: 'text-neon-blue',
-    },
-    {
-      icon: <Zap size={15} />,
-      label: 'Status',
-      value: 'Online',
-      accent: 'text-neon-green',
-    },
-  ];
+  const balanceFmt = balance
+    ? `₹${parseFloat(balance).toLocaleString('en-IN')}`
+    : '—';
 
   return (
-    <div className="min-h-screen flex flex-col bg-felt">
-      {/* ── Top Navigation Bar ─────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-6 py-3.5 border-b border-gold/10 bg-felt/80 backdrop-blur-sm sticky top-0 z-10">
+    <div
+      className="min-h-screen flex flex-col overflow-y-auto"
+      style={{ background: '#060e18' }}
+    >
+      {/* ── Rich ambient background ────────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_100%,#0b1f12_0%,#060e18_65%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_50%_at_5%_50%,rgba(212,175,55,0.04)_0%,transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_40%_at_95%_20%,rgba(56,189,248,0.03)_0%,transparent_70%)]" />
+        <FloatSuit suit="♠" style={{ bottom: '10%', left: '5%' }} duration={9} />
+        <FloatSuit suit="♥" style={{ top: '15%', right: '8%', color: '#ef4444' }} duration={11} delay={2} />
+        <FloatSuit suit="♦" style={{ bottom: '25%', right: '4%', color: '#ef4444' }} duration={8} delay={4} />
+        <FloatSuit suit="♣" style={{ top: '30%', left: '3%' }} duration={12} delay={1} />
+      </div>
+
+      {/* ── Top Navigation Bar ─────────────────────────────────────────── */}
+      <header
+        className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3"
+        style={{
+          background: 'rgba(6,14,24,0.85)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}
+      >
         {/* Logo */}
-        <div className="flex items-center gap-2.5">
-          <span className="text-gold text-xl">♠</span>
-          <span className="font-display text-xl font-black tracking-tight text-gold">
-            PokerIN
-          </span>
+        <div className="flex items-center gap-2">
+          <motion.span
+            animate={{ opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+            className="text-gold text-xl select-none"
+          >♠</motion.span>
+          <span className="font-display text-xl font-black tracking-tight text-gold">PokerIN</span>
         </div>
 
-        {/* User summary + actions */}
-        <div className="flex items-center gap-3">
+        {/* Nav actions */}
+        <div className="flex items-center gap-2">
           {/* User pill */}
-          <div className="hidden sm:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-surface-card border border-surface-elevated">
-            <div className="w-6 h-6 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center">
-              <span className="text-xs font-black text-gold">
-                {username?.charAt(0).toUpperCase()}
-              </span>
+          <button
+            id="btn-my-profile"
+            onClick={() => openModal('MY_PROFILE')}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 group"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.3)' }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                : <span className="text-[10px] font-black text-gold">{username?.charAt(0).toUpperCase()}</span>
+              }
             </div>
-            <span className="text-xs font-semibold text-slate-300">{username}</span>
-          </div>
+            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-200 transition-colors">{username}</span>
+          </button>
+
+          {/* Profile icon (mobile) */}
+          <button
+            id="btn-profile-icon"
+            onClick={() => openModal('MY_PROFILE')}
+            className="p-2 rounded-xl sm:hidden text-slate-500 hover:text-gold transition-colors"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <User size={16} />
+          </button>
 
           {/* Leaderboard */}
           <button
             id="btn-leaderboard"
             onClick={() => openModal('LEADERBOARD')}
-            title="Global Leaderboard"
-            className="
-              p-2 rounded-xl
-              bg-surface-card border border-surface-elevated
-              text-slate-400 hover:text-gold hover:border-gold/30
-              transition-colors
-            "
+            title="Leaderboard"
+            className="p-2 rounded-xl text-slate-500 hover:text-gold transition-colors"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
           >
             <Trophy size={16} />
-          </button>
-
-          {/* Tutorial */}
-          <button
-            id="btn-tutorial"
-            onClick={() => openModal('TUTORIAL')}
-            title="How to Play"
-            className="
-              p-2 rounded-xl
-              bg-surface-card border border-surface-elevated
-              text-slate-400 hover:text-slate-200 hover:border-surface-elevated/80
-              transition-colors
-            "
-          >
-            <BookOpen size={16} />
-          </button>
-
-          {/* Store */}
-          <button
-            id="btn-store"
-            onClick={() => openModal('STOREFRONT')}
-            title="Store"
-            className="
-              p-2 rounded-xl
-              bg-surface-card border border-surface-elevated
-              text-slate-400 hover:text-emerald-400 hover:border-emerald-400/30
-              transition-colors
-            "
-          >
-            <Store size={16} />
           </button>
 
           {/* Settings */}
@@ -455,12 +441,8 @@ export const LobbyPage: React.FC = () => {
             id="btn-settings"
             onClick={() => openModal('SETTINGS')}
             title="Settings"
-            className="
-              p-2 rounded-xl
-              bg-surface-card border border-surface-elevated
-              text-slate-400 hover:text-slate-200 hover:border-surface-elevated/80
-              transition-colors
-            "
+            className="p-2 rounded-xl text-slate-500 hover:text-gold transition-colors"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
           >
             <Settings size={16} />
           </button>
@@ -468,56 +450,96 @@ export const LobbyPage: React.FC = () => {
           {/* Logout */}
           <button
             id="btn-logout"
-            onClick={handleLogout}
+            onClick={() => { logout(); navigate('/'); }}
             title="Log out"
-            className="
-              p-2 rounded-xl
-              bg-red-500/10 border border-red-500/20
-              text-red-400 hover:bg-red-500/20 hover:text-red-300
-              transition-colors
-            "
+            className="p-2 rounded-xl text-red-500/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            style={{ border: '1px solid rgba(239,68,68,0.15)' }}
           >
             <LogOut size={16} />
           </button>
         </div>
       </header>
 
-      {/* ── Stats Bar ──────────────────────────────────────────────────────── */}
-      <div className="flex gap-px bg-surface-elevated/30 border-b border-gold/5">
-        {stats.map(({ icon, label, value, accent }) => (
-          <div
-            key={label}
-            className="flex-1 flex items-center gap-2.5 px-5 py-3 bg-felt hover:bg-felt-light/40 transition-colors"
-          >
-            <span className={`${accent} opacity-70`}>{icon}</span>
-            <div>
-              <p className="text-[10px] text-slate-600 font-medium uppercase tracking-wider">
-                {label}
-              </p>
-              <p className={`text-sm font-bold ${accent}`}>{value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* ── Main Content ──────────────────────────────────────────────────── */}
+      <main className="relative flex-1 flex flex-col items-center justify-center py-10 px-4">
 
-      {/* ── Main Content ───────────────────────────────────────────────────── */}
-      <main className="flex-1 flex items-center justify-center p-6">
+        {/* ── Hero section ──────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-10"
+        >
+          {/* Welcome chip */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+            style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse" />
+            <span className="text-xs font-semibold text-gold/80">Live Tables Running</span>
+          </div>
+
+          <h1 className="font-display text-4xl sm:text-5xl font-black text-white tracking-tight mb-3">
+            Welcome back,{' '}
+            <span
+              className="text-transparent bg-clip-text"
+              style={{ backgroundImage: 'linear-gradient(135deg, #d4af37, #f0cc5a)' }}
+            >
+              {username}
+            </span>
+          </h1>
+          <p className="text-slate-500 text-sm max-w-sm mx-auto">
+            Ready to play? Join a table or create your own private game.
+          </p>
+        </motion.div>
+
+        {/* ── Quick stats row ───────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-3 w-full max-w-md mb-8">
+          <QuickStat
+            icon={<Wallet size={16} />}
+            label="Balance"
+            value={balanceFmt}
+            accent="text-gold"
+            delay={0.1}
+          />
+          <QuickStat
+            icon={<Zap size={16} />}
+            label="Status"
+            value="Online"
+            accent="text-neon-green"
+            delay={0.18}
+          />
+          <QuickStat
+            icon={<TrendingUp size={16} />}
+            label="Season"
+            value="Active"
+            accent="text-neon-blue"
+            delay={0.26}
+          />
+        </div>
+
+        {/* ── Action card ───────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 24, delay: 0.15 }}
           className="w-full max-w-md"
         >
-          {/* Card */}
-          <div className="rounded-2xl bg-surface/95 backdrop-blur-xl border border-surface-elevated/60 shadow-2xl overflow-hidden">
-            {/* Card top accent */}
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: 'rgba(15,23,42,0.7)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              boxShadow: '0 0 0 1px rgba(212,175,55,0.08), 0 24px 48px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
 
             {/* Tab switcher */}
-            <div className="flex p-3 gap-2 bg-surface-card/40 border-b border-surface-elevated/40">
+            <div className="flex p-2.5 gap-2 border-b"
+              style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}>
               {([
-                { key: 'join' as Tab, label: 'Join Table', icon: <DoorOpen size={14} /> },
-                { key: 'create' as Tab, label: 'Create Table', icon: <Plus size={14} /> },
+                { key: 'join'   as Tab, label: 'Join Table',   icon: <DoorOpen size={14} /> },
+                { key: 'create' as Tab, label: 'Create Table', icon: <Plus    size={14} /> },
               ] as const).map(({ key, label, icon }) => (
                 <button
                   key={key}
@@ -527,10 +549,9 @@ export const LobbyPage: React.FC = () => {
                     flex-1 flex items-center justify-center gap-1.5
                     py-2.5 rounded-xl text-sm font-bold
                     border transition-all duration-200
-                    ${
-                      tab === key
-                        ? 'bg-gold/12 border-gold/30 text-gold'
-                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300 hover:bg-surface-elevated/30'
+                    ${tab === key
+                      ? 'bg-gold/12 border-gold/30 text-gold'
+                      : 'bg-transparent border-transparent text-slate-600 hover:text-slate-300 hover:bg-white/5'
                     }
                   `}
                 >
@@ -569,7 +590,7 @@ export const LobbyPage: React.FC = () => {
                     <JoinTableForm
                       token={token!}
                       onSuccess={handleJoinSuccess}
-                      onError={handleError}
+                      onError={setError}
                     />
                   </motion.div>
                 ) : (
@@ -583,23 +604,55 @@ export const LobbyPage: React.FC = () => {
                     <CreateTableForm
                       token={token!}
                       onSuccess={handleCreateSuccess}
-                      onError={handleError}
+                      onError={setError}
                     />
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Bottom accent */}
             <div className="h-px w-full bg-gradient-to-r from-transparent via-gold/15 to-transparent" />
           </div>
-
-          {/* Hint footer */}
-          <p className="text-center text-xs text-slate-600 mt-4">
-            🎰 New accounts start with{' '}
-            <span className="text-gold font-semibold">₹10,000</span> in play chips
-          </p>
         </motion.div>
+
+        {/* ── Bottom CTAs ───────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="flex flex-wrap items-center justify-center gap-3 mt-8"
+        >
+          <button
+            onClick={() => openModal('LEADERBOARD')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-gold transition-colors"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <Trophy size={13} />
+            View Leaderboard
+          </button>
+          <button
+            onClick={() => openModal('MY_PROFILE')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-gold transition-colors"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <User size={13} />
+            My Profile
+          </button>
+          <button
+            onClick={() => openModal('TUTORIAL')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-gold transition-colors"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <Hash size={13} />
+            How to Play
+          </button>
+        </motion.div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs text-slate-700 mt-6">
+          🎰 New accounts start with{' '}
+          <span className="text-gold font-semibold">₹10,000</span> in play chips
+        </p>
       </main>
     </div>
   );

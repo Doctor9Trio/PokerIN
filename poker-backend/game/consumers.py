@@ -92,10 +92,21 @@ class PokerConsumer(AsyncWebsocketConsumer):
                 await self.send_json({'type': 'ERROR', 'message': 'Table is full.'})
                 await self.close()
                 return
+
+            # Build avatar URL if the user has one uploaded
+            avatar_url = None
+            if self.user.avatar:
+                try:
+                    from django.conf import settings as djsettings
+                    avatar_url = f"{djsettings.MEDIA_URL}{self.user.avatar.name}"
+                except Exception:
+                    pass
+
             state['players'].append({
                 'seat_index': seats[0],
                 'user_id': self.user.id,
                 'username': self.user.username,
+                'avatar_url': avatar_url,
                 'stack': '0.00',  # Stack is set during BUY_IN
                 'hole_cards': [],
                 'current_bet': '0.00',
@@ -134,11 +145,9 @@ class PokerConsumer(AsyncWebsocketConsumer):
                 player['is_connected'] = False
                 save_state(self.invite_code, state)
 
-                # If it's their turn, start auto-fold timer immediately
+                # If it's their turn, force action immediately
                 if state.get('current_turn') == player['seat_index']:
-                    self._timeout_task = asyncio.create_task(
-                        self._auto_action_on_timeout(immediate=True)
-                    )
+                    await self._auto_action_on_timeout(immediate=True)
 
             await self.channel_layer.group_send(self.room_group, {
                 'type': 'broadcast_player_left',
@@ -179,6 +188,7 @@ class PokerConsumer(AsyncWebsocketConsumer):
             'BUY_IN':        self.handle_buy_in,
             'CHAT_MESSAGE':  self.handle_chat,
             'READY':         self.handle_ready,
+            'LEAVE_TABLE':   self._handle_leave_table,
         }
 
         handler = handlers.get(msg_type)
@@ -212,6 +222,7 @@ class PokerConsumer(AsyncWebsocketConsumer):
         amount = data.get('amount')
 
         try:
+            player['missed_turns'] = 0
             state = GameEngine.process_action(state, seat, action, amount)
         except ValueError as e:
             await self.send_error(str(e))
@@ -283,6 +294,60 @@ class PokerConsumer(AsyncWebsocketConsumer):
             save_state(self.invite_code, state)
             await self.broadcast_table_state(state)
             await self._check_and_start_hand(state)
+
+    async def _handle_leave_table(self, data: dict = None):
+        """Handle explicit 'Leave Table' button press for instant removal."""
+        state = get_state(self.invite_code)
+        if not state:
+            return
+
+        player = self._find_me(state)
+        if not player:
+            return
+
+        # If they are active in a hand, force them to FOLD first
+        if not player['is_folded'] and state.get('game_stage') not in ('WAITING', 'SHOWDOWN'):
+            if state.get('current_turn') == player['seat_index']:
+                try:
+                    state = GameEngine.process_action(state, player['seat_index'], 'FOLD')
+                except ValueError:
+                    pass
+            else:
+                # Fold out of turn
+                player['is_folded'] = True
+                active = get_active_players(state)
+                if len(active) == 1:
+                    state['game_stage'] = 'SHOWDOWN'
+                    state = GameEngine.evaluate_showdown(state)
+                else:
+                    pending = get_players_needing_action(state)
+                    if not pending:
+                        state = GameEngine.advance_stage(state)
+                
+        # Now remove them from the table completely
+        if player in state['players']:
+            state['players'].remove(player)
+            
+        # Refund whatever stack they had left
+        await self._refund_wallet(player['user_id'], Decimal(player['stack']))
+        
+        save_state(self.invite_code, state)
+
+        # Notify everyone they left
+        await self.channel_layer.group_send(self.room_group, {
+            'type': 'broadcast_player_left',
+            'username': self.user.username,
+            'seat_index': player['seat_index'],
+        })
+        
+        # Broadcast the updated table state without them
+        await self.broadcast_table_state(state)
+        
+        # If the hand ended, trigger showdown. Otherwise, re-notify current player.
+        if state.get('game_stage') == 'SHOWDOWN':
+            await self._trigger_showdown(state)
+        elif state.get('game_stage') not in ('SHOWDOWN', 'WAITING'):
+            await self._notify_current_player(state)
 
     async def handle_chat(self, data: dict):
         """Broadcast chat message to the table."""
@@ -381,18 +446,32 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
     # ─── Timeout / Auto-Action ───────────────────────────────────────────────────
 
-    async def _auto_action_on_timeout(self, immediate: bool = False):
+    async def _auto_action_on_timeout(self, immediate: bool = False, seat_index: int = None, delay_seconds: float = TURN_TIMEOUT_SECONDS):
         """After timeout, auto-fold (if facing bet) or auto-check."""
         if not immediate:
-            await asyncio.sleep(TURN_TIMEOUT_SECONDS)
+            await asyncio.sleep(delay_seconds)
 
         state = get_state(self.invite_code)
         if not state:
             return
-        player = self._find_me(state)
+            
+        if seat_index is not None:
+            target_seat = seat_index
+        else:
+            player = self._find_me(state)
+            if not player:
+                return
+            target_seat = player['seat_index']
+
+        if state.get('current_turn') != target_seat:
+            return
+
+        player = find_player(state, target_seat)
         if not player:
             return
-        if state.get('current_turn') != player['seat_index']:
+            
+        # If this is a background task for an offline player, abort if they reconnected!
+        if seat_index is not None and player.get('is_connected'):
             return
 
         current_bet = Decimal(state['current_bet'])
@@ -400,7 +479,8 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
         action = 'FOLD' if current_bet > player_bet else 'CHECK'
         try:
-            state = GameEngine.process_action(state, player['seat_index'], action)
+            player['missed_turns'] = player.get('missed_turns', 0) + 1
+            state = GameEngine.process_action(state, target_seat, action)
             save_state(self.invite_code, state)
             
             if state['game_stage'] == 'SHOWDOWN':
@@ -470,17 +550,45 @@ class PokerConsumer(AsyncWebsocketConsumer):
 
     async def _trigger_showdown(self, state: dict):
         """Handle showdown broadcasts and trigger the background delay to start the next hand."""
+        await self.broadcast_table_state(state)
         await self.broadcast_hand_result(state)
         await self._settle_hand(state)
-        asyncio.create_task(self._delayed_next_hand())
+        
+        # Broadcast to all connected clients to start the timer (preventing task cancellation on disconnect)
+        await self.channel_layer.group_send(self.room_group, {
+            'type': 'start_delayed_next_hand'
+        })
+
+    async def start_delayed_next_hand(self, event):
+        """Only the client with the lowest user_id actually runs the task."""
+        state = get_state(self.invite_code)
+        if not state:
+            return
+        connected = [p for p in state['players'] if p.get('is_connected')]
+        if connected:
+            connected.sort(key=lambda p: p['user_id'])
+            if self.user.id == connected[0]['user_id']:
+                asyncio.create_task(self._delayed_next_hand())
 
     async def _delayed_next_hand(self):
-        """Wait 5 seconds, then reset table and start next hand automatically."""
-        await asyncio.sleep(5)
+        """Wait 7 seconds, then reset table and start next hand automatically."""
+        await asyncio.sleep(7)
         # Fetch fresh state in case of concurrent updates
         state = get_state(self.invite_code)
         if state and state.get('game_stage') == 'SHOWDOWN':
             state = GameEngine.reset_for_next_hand(state)
+
+            # Kick AFK players
+            players_to_kick = [p for p in state['players'] if p.get('missed_turns', 0) >= 2]
+            for p in players_to_kick:
+                state['players'].remove(p)
+                await self._refund_wallet(p['user_id'], Decimal(p['stack']))
+                await self.channel_layer.group_send(self.room_group, {
+                    'type': 'broadcast_player_left',
+                    'username': p['username'],
+                    'seat_index': p['seat_index'],
+                })
+
             save_state(self.invite_code, state)
             await self.broadcast_table_state(state)
             await self._check_and_start_hand(state)
@@ -492,6 +600,11 @@ class PokerConsumer(AsyncWebsocketConsumer):
             return
         current_player = find_player(state, current_seat)
         if not current_player:
+            return
+
+        if not current_player.get('is_connected', True):
+            # Player is offline! Auto-action for them after a brief delay
+            asyncio.create_task(self._auto_action_on_timeout(immediate=False, seat_index=current_seat, delay_seconds=1.5))
             return
 
         private_group = f'private_{self.invite_code}_{current_player["user_id"]}'
@@ -531,6 +644,18 @@ class PokerConsumer(AsyncWebsocketConsumer):
             return PokerTable.objects.get(invite_code=self.invite_code, is_active=True)
         except PokerTable.DoesNotExist:
             return None
+
+    @database_sync_to_async
+    def _refund_wallet(self, user_id: int, amount: Decimal):
+        if amount <= 0:
+            return
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(id=user_id)
+            user.wallet.credit(amount)
+        except Exception:
+            pass
 
     @database_sync_to_async
     def _deduct_wallet(self, amount: Decimal) -> bool:

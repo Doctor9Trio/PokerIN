@@ -15,7 +15,7 @@ interface ActionConsoleProps {
 
 const formatINR = (val: string | number) => {
   const n = typeof val === 'string' ? parseFloat(val) : val;
-  return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
+  return `₹${Math.floor(n).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
 };
 
 export const ActionConsole: React.FC<ActionConsoleProps> = ({
@@ -27,10 +27,10 @@ export const ActionConsole: React.FC<ActionConsoleProps> = ({
   onAction,
   disabled = false,
 }) => {
-  const maxRaise = parseFloat(myStack);
-  const minRaiseNum = parseFloat(minRaise);
-  const potNum = parseFloat(pot);
-  const callNum = parseFloat(callAmount);
+  const maxRaise = Math.floor(parseFloat(myStack));
+  const minRaiseNum = Math.floor(parseFloat(minRaise));
+  const potNum = Math.floor(parseFloat(pot));
+  const callNum = Math.floor(parseFloat(callAmount));
 
   const [raiseAmount, setRaiseAmount] = useState<number>(minRaiseNum);
   const [showSlider, setShowSlider] = useState(false);
@@ -59,18 +59,18 @@ export const ActionConsole: React.FC<ActionConsoleProps> = ({
   }, [onAction]);
 
   const handleCall = useCallback(() => {
-    playSound('chip_place');
+    playSound('chip_bet');
     onAction('CALL');
   }, [onAction]);
 
   const handleRaise = useCallback(() => {
-    playSound('chip_riffle');
+    playSound('chip_bet');
     onAction('RAISE', raiseAmount);
     setShowSlider(false);
   }, [onAction, raiseAmount]);
 
   const handleAllIn = useCallback(() => {
-    playSound('chip_riffle');
+    playSound('chip_bet');
     onAction('ALL_IN');
   }, [onAction]);
 
@@ -132,12 +132,32 @@ export const ActionConsole: React.FC<ActionConsoleProps> = ({
                     '--val': `${((raiseAmount - minRaiseNum) / (maxRaise - minRaiseNum)) * 100}%`,
                   } as React.CSSProperties}
                 />
-                <span
-                  className="text-sm font-bold w-20 text-right"
-                  style={{ color: '#d4af37' }}
-                >
-                  {formatINR(raiseAmount)}
-                </span>
+                <div className="relative w-24">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'rgba(212,175,55,0.5)' }}>₹</span>
+                  <input
+                    type="number"
+                    min={minRaiseNum}
+                    max={maxRaise}
+                    step={10}
+                    value={Math.floor(raiseAmount)}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      // Allow typing by just setting the value, but clamp it before action
+                      setRaiseAmount(val);
+                    }}
+                    onBlur={() => {
+                      // Clamp strictly on blur
+                      setRaiseAmount(Math.min(Math.max(raiseAmount, minRaiseNum), maxRaise));
+                    }}
+                    className="w-full bg-slate-900/80 border rounded-md py-1.5 pl-6 pr-2 text-sm font-bold outline-none transition-colors"
+                    style={{
+                      borderColor: 'rgba(100,116,139,0.5)',
+                      color: '#d4af37',
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#d4af37'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(100,116,139,0.5)'}
+                  />
+                </div>
               </div>
             </motion.div>
           )}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, TrendingUp, RefreshCw, AlertCircle, WifiOff } from 'lucide-react';
+import { X, Trophy, TrendingUp, RefreshCw, AlertCircle, WifiOff, ChevronRight } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import {
   fetchLeaderboard,
   normaliseTotalChips,
 } from '../../api/leaderboardService';
 import type { LeaderboardEntry } from '../../api/leaderboardService';
+import { LeaderboardPlayerModal } from './LeaderboardPlayerModal';
 
 // ─── Rank medal config ────────────────────────────────────────────────────────
 
@@ -25,23 +26,18 @@ const SkeletonRow: React.FC<{ index: number }> = ({ index }) => (
     transition={{ delay: index * 0.05 }}
     className="flex items-center gap-3 px-4 py-3 rounded-xl"
   >
-    {/* Rank placeholder */}
     <div className="w-8 flex justify-center flex-shrink-0">
       <div className="w-5 h-4 rounded bg-surface-elevated/60 animate-pulse" />
     </div>
-    {/* Avatar circle */}
     <div className="w-8 h-8 rounded-full bg-surface-elevated/60 animate-pulse flex-shrink-0" />
-    {/* Name + hands block */}
     <div className="flex-1 space-y-1.5">
       <div className="h-3.5 w-28 rounded bg-surface-elevated/60 animate-pulse" />
       <div className="h-2.5 w-16 rounded bg-surface-elevated/40 animate-pulse" />
     </div>
-    {/* Win rate block */}
     <div className="space-y-1.5 text-right flex-shrink-0">
       <div className="h-3.5 w-10 rounded bg-surface-elevated/60 animate-pulse ml-auto" />
       <div className="h-2.5 w-12 rounded bg-surface-elevated/40 animate-pulse ml-auto" />
     </div>
-    {/* Chips block */}
     <div className="w-20 space-y-1.5 text-right flex-shrink-0">
       <div className="h-3.5 w-14 rounded bg-surface-elevated/60 animate-pulse ml-auto" />
       <div className="h-2.5 w-8 rounded bg-surface-elevated/40 animate-pulse ml-auto" />
@@ -51,25 +47,27 @@ const SkeletonRow: React.FC<{ index: number }> = ({ index }) => (
 
 // ─── Data row ─────────────────────────────────────────────────────────────────
 
-const LeaderboardRow: React.FC<{ entry: LeaderboardEntry; index: number }> = ({
-  entry,
-  index,
-}) => {
+const LeaderboardRow: React.FC<{
+  entry: LeaderboardEntry;
+  index: number;
+  onClick: (e: LeaderboardEntry) => void;
+}> = ({ entry, index, onClick }) => {
   const cfg = RANK_CONFIG[entry.rank];
   const isTop3 = entry.rank <= 3;
   const chipsNum = normaliseTotalChips(entry);
 
   return (
-    <motion.div
+    <motion.button
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.04, duration: 0.2 }}
+      onClick={() => onClick(entry)}
       className={`
-        flex items-center gap-3 px-4 py-3 rounded-xl
-        border transition-colors
+        w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left
+        border transition-all duration-150 cursor-pointer group
         ${isTop3
-          ? `${cfg.bg} ${cfg.ring}`
-          : 'border-transparent hover:bg-surface-elevated/20 hover:border-surface-elevated/40'
+          ? `${cfg.bg} ${cfg.ring} hover:brightness-110`
+          : 'border-transparent hover:bg-surface-elevated/25 hover:border-surface-elevated/50'
         }
       `}
     >
@@ -82,16 +80,22 @@ const LeaderboardRow: React.FC<{ entry: LeaderboardEntry; index: number }> = ({
         )}
       </div>
 
-      {/* Avatar initial */}
-      <div className={`
-        w-8 h-8 rounded-full flex-shrink-0
-        flex items-center justify-center text-xs font-black
-        ${isTop3
-          ? `border-2 ${cfg.ring} ${cfg.text} bg-surface-card`
-          : 'bg-surface-card text-slate-500 border border-surface-elevated'
-        }
-      `}>
-        {entry.username.charAt(0).toUpperCase()}
+      {/* Avatar */}
+      <div
+        className={`
+          w-8 h-8 rounded-full flex-shrink-0 overflow-hidden
+          flex items-center justify-center text-xs font-black
+          ${isTop3
+            ? `border-2 ${cfg.ring} ${cfg.text} bg-surface-card`
+            : 'bg-surface-card text-slate-500 border border-surface-elevated'
+          }
+        `}
+      >
+        {entry.avatar_url ? (
+          <img src={entry.avatar_url} alt={entry.username} className="w-full h-full object-cover" />
+        ) : (
+          entry.username.charAt(0).toUpperCase()
+        )}
       </div>
 
       {/* Username + hands played */}
@@ -125,7 +129,13 @@ const LeaderboardRow: React.FC<{ entry: LeaderboardEntry; index: number }> = ({
         </p>
         <p className="text-[10px] text-slate-600">chips</p>
       </div>
-    </motion.div>
+
+      {/* Click hint */}
+      <ChevronRight
+        size={12}
+        className="text-slate-700 group-hover:text-slate-400 transition-colors flex-shrink-0"
+      />
+    </motion.button>
   );
 };
 
@@ -170,6 +180,7 @@ export const LeaderboardModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [computedAt, setComputedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<LeaderboardEntry | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -187,7 +198,6 @@ export const LeaderboardModal: React.FC = () => {
         hour: '2-digit', minute: '2-digit', hour12: true,
       }));
     } catch (err: any) {
-      // Normalise the error into a user-facing message
       const isNetworkError =
         !err.response || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED';
 
@@ -204,7 +214,6 @@ export const LeaderboardModal: React.FC = () => {
     }
   }, []);
 
-  // Fetch on mount
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -242,9 +251,17 @@ export const LeaderboardModal: React.FC = () => {
       <div className="overflow-y-auto flex-1 px-3 py-2 space-y-0.5">
         <AnimatePresence>
           {entries.map((entry, i) => (
-            <LeaderboardRow key={entry.rank} entry={entry} index={i} />
+            <LeaderboardRow
+              key={entry.rank}
+              entry={entry}
+              index={i}
+              onClick={setSelectedEntry}
+            />
           ))}
         </AnimatePresence>
+        <p className="text-center text-[10px] text-slate-700 pt-2">
+          Tap any player to view their detailed stats
+        </p>
       </div>
     );
   };
@@ -285,7 +302,7 @@ export const LeaderboardModal: React.FC = () => {
                 <h2 className="font-display font-bold text-slate-100 text-base leading-tight">
                   Global Leaderboard
                 </h2>
-                <p className="text-[10px] text-slate-600">Top players by total chips</p>
+                <p className="text-[10px] text-slate-600">Tap a player to view full stats</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -315,7 +332,7 @@ export const LeaderboardModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Column headers — only show when data is loaded */}
+          {/* Column headers */}
           {!isLoading && !error && entries.length > 0 && (
             <div className="flex items-center gap-3 px-5 py-2 text-[10px] font-semibold text-slate-600 uppercase tracking-wider border-b border-surface-elevated/30 flex-shrink-0">
               <div className="w-8 text-center">#</div>
@@ -323,10 +340,11 @@ export const LeaderboardModal: React.FC = () => {
               <div className="flex-1">Player</div>
               <div className="w-16 text-right">Win Rate</div>
               <div className="w-20 text-right">Chips</div>
+              <div className="w-4" />
             </div>
           )}
 
-          {/* Body (loading / error / data) */}
+          {/* Body */}
           <div className="flex-1 overflow-hidden flex flex-col">
             {renderBody()}
           </div>
@@ -344,6 +362,12 @@ export const LeaderboardModal: React.FC = () => {
           <div className="h-px w-full bg-gradient-to-r from-transparent via-gold/15 to-transparent flex-shrink-0" />
         </motion.div>
       </div>
+
+      {/* Player detail modal — renders above everything */}
+      <LeaderboardPlayerModal
+        entry={selectedEntry}
+        onClose={() => setSelectedEntry(null)}
+      />
     </>
   );
 };

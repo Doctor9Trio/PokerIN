@@ -76,24 +76,6 @@ export const TimerRing: React.FC<TimerRingProps> = ({
           }}
         />
       </svg>
-      {/* Center countdown number */}
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center"
-        animate={remainingSeconds <= 5 ? { scale: [1, 1.1, 1] } : {}}
-        transition={{ repeat: Infinity, duration: 0.5 }}
-      >
-        <span
-          style={{
-            color,
-            fontSize: size * 0.28,
-            fontWeight: 800,
-            fontFamily: 'Outfit, sans-serif',
-            textShadow: `0 0 8px ${color}`,
-          }}
-        >
-          {Math.ceil(remainingSeconds)}
-        </span>
-      </motion.div>
     </div>
   );
 };

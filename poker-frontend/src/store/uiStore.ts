@@ -12,6 +12,7 @@ export type ModalName =
   | 'LEADERBOARD'
   | 'TUTORIAL'
   | 'STOREFRONT'
+  | 'MY_PROFILE'
   | null;
 
 export interface UISettings {

@@ -7,7 +7,7 @@ A full-stack poker application with Django + Channels backend and Vite + React (
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- Redis (for channel layer + game state)
+- Redis (Run easily using Docker: `docker compose up -d`)
 - PostgreSQL (optional — SQLite used by default for local dev)
 
 ---
@@ -22,7 +22,10 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env as needed (SQLite is used by default — no DB config required for local dev)
+# Edit .env as needed (SQLite is used by default, but set USE_REDIS=True to enable the Redis container layer)
+
+# Start Redis container
+docker compose up -d
 
 # Run migrations
 python manage.py migrate

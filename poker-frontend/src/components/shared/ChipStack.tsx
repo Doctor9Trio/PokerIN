@@ -21,6 +21,7 @@ const DENOMINATIONS: ChipDenomination[] = [
   { value:  500, color: '#16a34a', borderColor: '#86efac', label: '500' },
   { value:  100, color: '#dc2626', borderColor: '#fca5a5', label: '100' },
   { value:   50, color: '#2563eb', borderColor: '#93c5fd', label: '50' },
+  { value:    1, color: '#f8fafc', borderColor: '#cbd5e1', label: '1'  },
 ];
 
 function breakdownChips(amount: number): Array<{ denom: ChipDenomination; count: number }> {
@@ -63,12 +64,12 @@ const Chip: React.FC<{ denom: ChipDenomination; index: number; animate: boolean 
       justifyContent: 'center',
       fontSize: 9,
       fontWeight: 800,
-      color: '#fff',
-      textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+      color: denom.value === 1 ? '#0f172a' : '#fff',
+      textShadow: denom.value === 1 ? 'none' : '0 1px 2px rgba(0,0,0,0.8)',
       flexShrink: 0,
-      marginLeft: index > 0 ? -12 : 0, // Tighter stacking
-      marginTop: index > 0 ? -3 : 0, // Slight vertical stagger to look 3D
-      position: 'relative',
+      position: 'absolute',
+      bottom: index * 5, // Stack upwards vertically
+      left: 0,
       zIndex: index,
     }}
     title={`₹${denom.value}`}
@@ -91,17 +92,19 @@ export const ChipStack: React.FC<ChipStackProps> = ({
   return (
     <div className={`flex flex-col items-center justify-center gap-1.5 ${className}`}>
       {/* Chip visuals */}
-      <div className="flex items-center drop-shadow-md">
-        {chips.flatMap(({ denom, count }) =>
-          Array.from({ length: count }, (_, i) => (
-            <Chip
-              key={`${denom.value}-${i}`}
-              denom={denom}
-              index={i}
-              animate={animate}
-            />
-          ))
-        )}
+      <div className="flex items-end gap-1 drop-shadow-md">
+        {chips.map(({ denom, count }) => (
+          <div key={denom.value} className="relative" style={{ width: 32, height: 32 + (count - 1) * 5 }}>
+            {Array.from({ length: count }, (_, i) => (
+              <Chip
+                key={`${denom.value}-${i}`}
+                denom={denom}
+                index={i}
+                animate={animate}
+              />
+            ))}
+          </div>
+        ))}
       </div>
       {/* Amount label */}
       <div
@@ -113,7 +116,7 @@ export const ChipStack: React.FC<ChipStackProps> = ({
           backdropFilter: 'blur(4px)'
         }}
       >
-        ₹{numAmount.toLocaleString('en-IN')}
+        ₹{Math.floor(numAmount).toLocaleString('en-IN')}
       </div>
     </div>
   );

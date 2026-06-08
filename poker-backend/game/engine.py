@@ -6,6 +6,7 @@ Uses the `treys` library for hand evaluation (handles all 7,462 distinct hand ra
 """
 import random
 import asyncio
+import itertools
 from decimal import Decimal, ROUND_DOWN
 from typing import List, Dict, Any, Optional
 from treys import Card, Evaluator, Deck as TreysInternalDeck
@@ -417,14 +418,15 @@ class GameEngine:
         # If everyone else folded, the last remaining player wins the pot outright
         if len(active) == 1:
             winner = active[0]
-            amount = Decimal(state['pot'])
-            winner['stack'] = str(Decimal(winner['stack']) + amount)
+            amount = int(Decimal(state['pot']))
+            winner['stack'] = str(int(Decimal(winner['stack'])) + amount)
             winners_info = [{
                 'seat_index': winner['seat_index'],
                 'user_id': winner['user_id'],
                 'username': winner['username'],
                 'amount_won': str(amount),
                 'hand_rank': 'Default Win (Opponents Folded)',
+                'winning_cards': []
             }]
             state['winners'] = winners_info
             state['game_stage'] = 'SHOWDOWN'
@@ -454,7 +456,7 @@ class GameEngine:
         for info in winners_info:
             player = find_player(state, info['seat_index'])
             if player:
-                player['stack'] = str(Decimal(player['stack']) + Decimal(info['amount_won']))
+                player['stack'] = str(int(Decimal(player['stack']) + Decimal(info['amount_won'])))
 
         return state
 
@@ -469,10 +471,9 @@ class GameEngine:
             return []
 
         n = len(winners)
-        # Use paisa precision (2 decimal places)
-        # Round down to nearest rupee (standard casino odd-chip rule)
-        share = (total_amount / n).quantize(Decimal('1'), rounding=ROUND_DOWN)
-        remainder = total_amount - (share * n)
+        # Use integer math to enforce whole rupees (no decimals)
+        share = int(total_amount / n)
+        remainder = int(total_amount) - (share * n)
 
         result = []
         dealer = state['dealer_button']
@@ -481,23 +482,39 @@ class GameEngine:
         odd_chip_candidates = [s for s in connected_seats if s > dealer] or connected_seats
         odd_chip_seat = odd_chip_candidates[0] if odd_chip_candidates else (winners[0]['seat_index'])
 
+        community_cards_str = state['community_cards']
+
         for i, w in enumerate(winners):
             amount = share
             if remainder > 0 and w['seat_index'] == odd_chip_seat:
                 amount += remainder
-                remainder = Decimal('0.00')
-            rank_class = evaluator.get_rank_class(
-                evaluator.evaluate(
-                    cards_to_treys(state['community_cards']),
-                    cards_to_treys(w['hole_cards'])
-                )
-            )
+                remainder = 0
+
+            hole_cards_str = w['hole_cards']
+            
+            # Find best 5-card combination from 7 cards
+            all_7_cards = community_cards_str + hole_cards_str
+            best_combo_rank = 7463
+            best_5_cards = []
+            
+            for combo in itertools.combinations(all_7_cards, 5):
+                # treys evaluator.evaluate requires board (list) and hand (list)
+                # Since we already selected 5 cards, pass them all as 'hand' and empty 'board'
+                combo_list = list(combo)
+                r = evaluator.evaluate([], cards_to_treys(combo_list))
+                if r < best_combo_rank:
+                    best_combo_rank = r
+                    best_5_cards = combo_list
+                    
+            rank_class = evaluator.get_rank_class(best_combo_rank)
+
             result.append({
                 'seat_index': w['seat_index'],
                 'user_id': w['user_id'],
                 'username': w['username'],
                 'amount_won': str(amount),
                 'hand_rank': evaluator.class_to_string(rank_class),
+                'winning_cards': best_5_cards,
             })
 
         return result

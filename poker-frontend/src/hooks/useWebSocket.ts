@@ -90,13 +90,20 @@ export function useWebSocket(inviteCode: string | null) {
           // Compare the incoming board length against the current snapshot to
           // determine whether this update is a Flop (3 cards), Turn (1), or
           // River (1) and stagger the deal sounds accordingly.
-          const prevBoard = useGameStore.getState().tableState?.board ?? [];
-          const nextBoard = msg.state?.board ?? [];
+          const prevBoard = useGameStore.getState().tableState?.community_cards ?? [];
+          const nextBoard = msg.state?.community_cards ?? [];
           const newCardCount = nextBoard.length - prevBoard.length;
           if (newCardCount > 0) {
             playStaggered('card_deal', newCardCount);
           }
 
+          const oldState = useGameStore.getState().tableState;
+          
+          // Clear last winners if a new hand has started
+          if (oldState && (msg.state.hand_number > oldState.hand_number || msg.state.game_stage === 'PRE_FLOP' || msg.state.game_stage === 'WAITING')) {
+            useGameStore.setState({ lastWinners: [] });
+          }
+          
           setTableState(msg.state);
           break;
         }
@@ -237,7 +244,9 @@ export function useWebSocket(inviteCode: string | null) {
           // Bound the Set to prevent unbounded memory growth
           if (processedMsgIds.current.size >= 200) {
             const firstKey = processedMsgIds.current.values().next().value;
-            processedMsgIds.current.delete(firstKey);
+            if (firstKey !== undefined) {
+              processedMsgIds.current.delete(firstKey);
+            }
           }
           processedMsgIds.current.add(dedupeKey);
 

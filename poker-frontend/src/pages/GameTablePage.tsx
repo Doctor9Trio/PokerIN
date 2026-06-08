@@ -198,10 +198,15 @@ export const GameTablePage: React.FC = () => {
   };
 
   const handleLeave = () => {
+    // Send explicit leave message so the backend instantly folds and removes us
+    send({ type: 'LEAVE_TABLE' });
+    
     // Disconnect the socket immediately so no more events come in,
     // then show the session summary — navigation happens from inside the modal.
-    disconnect();
-    openModal('SESSION_SUMMARY');
+    setTimeout(() => {
+      disconnect();
+      openModal('SESSION_SUMMARY');
+    }, 50);
   };
 
   const handleBuyInConfirm = (amount: number) => {

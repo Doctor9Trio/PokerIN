@@ -5,6 +5,12 @@ from django.db import models
 class User(AbstractUser):
     """Extended user with unique email constraint."""
     email = models.EmailField(unique=True)
+    avatar = models.ImageField(
+        upload_to='avatars/',
+        null=True,
+        blank=True,
+        help_text='Profile picture uploaded by the user.',
+    )
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']

@@ -14,12 +14,20 @@ export interface LeaderboardEntry {
   /** Server-computed rank (1-based) */
   rank: number;
   username: string;
-  /** Total chip balance as a numeric string, e.g. "284500.00" */
+  /** Current wallet balance as a numeric string, e.g. "12500.00" */
   total_chips: string;
   /** Win-rate 0–100, e.g. 61.4 */
   win_rate: number;
   /** Total hands the player has participated in */
   hands_played: number;
+  /** Hands won */
+  hands_won: number;
+  /** Cumulative chips won across all hands */
+  total_winnings: string;
+  /** Cumulative chips lost */
+  total_losses: string;
+  /** Player's uploaded avatar URL, or null */
+  avatar_url: string | null;
 }
 
 export interface LeaderboardResponse {

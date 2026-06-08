@@ -17,6 +17,7 @@ export interface PlayerState {
   seat_index: number;
   user_id: number;
   username: string;
+  avatar_url?: string | null;   // uploaded profile picture URL (optional)
   stack: string;        // INR decimal string
   hole_cards: CardString[];
   current_bet: string;  // INR decimal string
@@ -38,6 +39,7 @@ export interface WinnerInfo {
   username: string;
   amount_won: string;
   hand_rank: string;
+  winning_cards?: CardString[];
 }
 
 export interface TableState {
@@ -67,7 +69,8 @@ export type ServerMessage =
   | { type: 'PLAYER_LEFT'; username: string; seat_index: number }
   | { type: 'BUY_IN_CONFIRMED'; amount: string; new_stack: string }
   | { type: 'ERROR'; message: string }
-  | { type: 'CHAT_MESSAGE'; username: string; message: string };
+  | { type: 'CHAT_MESSAGE'; username: string; message: string }
+  | { type: 'PLAYER_ACTION'; action?: string };
 
 // WebSocket message types (client → server)
 export interface PlayerActionMessage {

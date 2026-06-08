@@ -58,7 +58,7 @@ class PurchaseView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         # ── Lock row & validate balance / ownership ──────────────────────────────
-        economy, _ = PlayerEconomy.objects.select_for_update().get_or_create(user=request.user)
+        economy, _ = PlayerEconomy.objects.get_or_create(user=request.user)
 
         if item_id in economy.inventory:
             logger.warning('[Purchase] 400 — Item already owned: %s for user=%s', item_id, request.user)
@@ -139,7 +139,7 @@ class AwardCoinsView(APIView):
         if amount <= 0:
             return Response({"detail": "Amount must be positive"}, status=status.HTTP_400_BAD_REQUEST)
 
-        economy, _ = PlayerEconomy.objects.select_for_update().get_or_create(user=request.user)
+        economy, _ = PlayerEconomy.objects.get_or_create(user=request.user)
         economy.gold_coins += amount
         economy.save()
 
